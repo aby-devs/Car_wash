@@ -1,4 +1,5 @@
-import { Car, Plus, BarChart3, FileText } from "lucide-react";
+import { Car, Plus, BarChart3, FileText, Users } from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
 import {
   Sidebar,
   SidebarContent,
@@ -12,30 +13,27 @@ import {
 } from "@/components/ui/sidebar";
 
 const menuItems = [
-  { title: "Dashboard", id: "dashboard", icon: BarChart3 },
-  { title: "Add Service", id: "add-record", icon: FileText },
-  { title: "Reports", id: "records", icon: FileText },
+  { title: "Dashboard", path: "/", icon: BarChart3 },
+  { title: "Add Service", path: "/add-record", icon: FileText },
+  { title: "Reports", path: "/reports", icon: FileText },
+  { title: "Staff", path: "/staff", icon: Users },
 ];
 
-interface AppSidebarProps {
-  activeTab: string;
-  setActiveTab: (tab: string) => void;
-}
-
-export function AppSidebar({ activeTab, setActiveTab }: AppSidebarProps) {
+export function AppSidebar() {
   const { state } = useSidebar();
+  const location = useLocation();
   const isCollapsed = state === "collapsed";
 
-  const isActive = (tabId: string) => activeTab === tabId;
+  const isActive = (path: string) => location.pathname === path;
 
   return (
     <Sidebar collapsible="icon">
       <SidebarContent className="bg-card border-r">
         {/* Header */}
-        <div className="p-4 border-b">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-gradient-to-r from-primary to-primary-hover rounded-lg">
-              <Car className="h-6 w-6 text-primary-foreground" />
+        <div className={`${isCollapsed ? 'p-2' : 'p-4'} border-b`}>
+          <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'}`}>
+            <div className={`${isCollapsed ? 'p-1.5' : 'p-2'} bg-gradient-to-r from-primary to-primary-hover rounded-lg`}>
+              <Car className={`${isCollapsed ? 'h-4 w-4' : 'h-6 w-6'} text-primary-foreground`} />
             </div>
             {!isCollapsed && (
               <div>
@@ -55,17 +53,19 @@ export function AppSidebar({ activeTab, setActiveTab }: AppSidebarProps) {
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems.map((item) => (
-                <SidebarMenuItem key={item.id}>
+                <SidebarMenuItem key={item.path}>
                   <SidebarMenuButton
-                    onClick={() => setActiveTab(item.id)}
+                    asChild
                     className={`w-full justify-start transition-all duration-200 ${
-                      isActive(item.id)
+                      isActive(item.path)
                         ? "bg-primary text-primary-foreground hover:bg-primary/90"
                         : "hover:bg-muted"
                     }`}
                   >
-                    <item.icon className="h-4 w-4" />
-                    {!isCollapsed && <span className="ml-3">{item.title}</span>}
+                    <Link to={item.path}>
+                      <item.icon className="h-4 w-4" />
+                      {!isCollapsed && <span className="ml-3">{item.title}</span>}
+                    </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}

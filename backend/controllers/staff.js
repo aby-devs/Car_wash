@@ -1,0 +1,185 @@
+const { admin, service_db } = require('../configs/firebase_db');
+
+// Get staff commission data for a specific date
+exports.get_staff_commission = async (req, res) => {
+  try {
+    const { date } = req.query;
+    
+    if (!date) {
+      return res.status(400).json({
+        success: false,
+        message: 'Date parameter is required'
+      });
+    }
+
+    // Parse the date and create start/end of day timestamps
+    const targetDate = new Date(date);
+    const startOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
+    const endOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59, 999);
+
+    // Get all records for the specified date
+    const snapshot = await service_db.collection('records')
+      .where('createdAt', '>=', startOfDay)
+      .where('createdAt', '<=', endOfDay)
+      .orderBy('createdAt', 'desc')
+      .get();
+
+    const records = [];
+    snapshot.forEach(doc => {
+      records.push({
+        id: doc.id,
+        ...doc.data()
+      });
+    });
+
+    // Calculate commission data
+    const totalServices = records.length;
+    const totalRevenue = records.reduce((sum, record) => sum + record.amountPaid, 0);
+    const commissionRate = 0.30; // 30% commission
+    const totalCommission = totalRevenue * commissionRate;
+
+    // Get unique staff members
+    const uniqueStaff = [...new Set(records.map(record => record.attendant))];
+    const totalStaff = uniqueStaff.length;
+
+    // Calculate individual staff commission breakdown
+    const staffBreakdown = uniqueStaff.map(attendant => {
+      const attendantRecords = records.filter(r => r.attendant === attendant);
+      const attendantRevenue = attendantRecords.reduce((sum, r) => sum + r.amountPaid, 0);
+      const attendantCommission = attendantRevenue * commissionRate;
+      
+      return {
+        attendant,
+        services: attendantRecords.length,
+        revenue: attendantRevenue,
+        commission: attendantCommission,
+        averageService: attendantRecords.length > 0 ? attendantRevenue / attendantRecords.length : 0
+      };
+    }).sort((a, b) => b.commission - a.commission);
+
+    res.status(200).json({
+      success: true,
+      message: 'Staff commission data retrieved successfully',
+      data: {
+        date: date,
+        totalStaff,
+        totalServices,
+        totalRevenue,
+        totalCommission,
+        commissionRate: commissionRate * 100, // Return as percentage
+        staffBreakdown
+      }
+    });
+
+  } catch (error) {
+    console.error('Error getting staff commission:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
+// Get staff commission summary (all time or date range)
+exports.get_staff_summary = async (req, res) => {
+  try {
+    const { startDate, endDate, period = 'all' } = req.query;
+    
+    let query = service_db.collection('records');
+    let filteredRecords = [];
+
+    if (period === 'all' || (!startDate && !endDate)) {
+      // Get all records
+      const snapshot = await query.orderBy('createdAt', 'desc').get();
+      snapshot.forEach(doc => {
+        filteredRecords.push({
+          id: doc.id,
+          ...doc.data()
+        });
+      });
+    } else if (startDate && endDate) {
+      // Date range filtering
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      
+      const snapshot = await query
+        .where('createdAt', '>=', start)
+        .where('createdAt', '<=', end)
+        .orderBy('createdAt', 'desc')
+        .get();
+      
+      snapshot.forEach(doc => {
+        filteredRecords.push({
+          id: doc.id,
+          ...doc.data()
+        });
+      });
+    } else {
+      // Single date filtering
+      const targetDate = new Date(startDate || endDate);
+      const startOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
+      const endOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59, 999);
+      
+      const snapshot = await query
+        .where('createdAt', '>=', startOfDay)
+        .where('createdAt', '<=', endOfDay)
+        .orderBy('createdAt', 'desc')
+        .get();
+      
+      snapshot.forEach(doc => {
+        filteredRecords.push({
+          id: doc.id,
+          ...doc.data()
+        });
+      });
+    }
+
+    // Calculate summary statistics
+    const totalServices = filteredRecords.length;
+    const totalRevenue = filteredRecords.reduce((sum, record) => sum + record.amountPaid, 0);
+    const commissionRate = 0.30;
+    const totalCommission = totalRevenue * commissionRate;
+    const uniqueStaff = [...new Set(filteredRecords.map(record => record.attendant))];
+
+    // Top performing staff
+    const staffPerformance = uniqueStaff.map(attendant => {
+      const attendantRecords = filteredRecords.filter(r => r.attendant === attendant);
+      const attendantRevenue = attendantRecords.reduce((sum, r) => sum + r.amountPaid, 0);
+      const attendantCommission = attendantRevenue * commissionRate;
+      
+      return {
+        attendant,
+        services: attendantRecords.length,
+        revenue: attendantRevenue,
+        commission: attendantCommission,
+        averageService: attendantRecords.length > 0 ? attendantRevenue / attendantRecords.length : 0
+      };
+    }).sort((a, b) => b.commission - a.commission);
+
+    res.status(200).json({
+      success: true,
+      message: 'Staff summary retrieved successfully',
+      data: {
+        period: period,
+        dateRange: startDate && endDate ? { startDate, endDate } : null,
+        totalStaff: uniqueStaff.length,
+        totalServices,
+        totalRevenue,
+        totalCommission,
+        commissionRate: commissionRate * 100,
+        topPerformers: staffPerformance.slice(0, 5), // Top 5 performers
+        staffPerformance
+      }
+    });
+
+  } catch (error) {
+    console.error('Error getting staff summary:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};

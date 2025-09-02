@@ -1,23 +1,59 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Car, DollarSign, Users, Calendar, TrendingUp } from "lucide-react";
-import { CarWashRecord } from "./CarWashRecord";
+import { CarWashRecord, DashboardStats } from "./CarWashRecord";
 import heroImage from "@/assets/car-wash-hero.jpg";
 
 interface DashboardProps {
   records: CarWashRecord[];
+  dashboardStats?: DashboardStats | null;
+  todayStats?: DashboardStats | null;
+  weekStats?: DashboardStats | null;
+  monthStats?: DashboardStats | null;
 }
 
-export function Dashboard({ records }: DashboardProps) {
-  const totalRevenue = records.reduce((sum, record) => sum + record.amountPaid, 0);
-  const todayRecords = records.filter(record => record.date === new Date().toLocaleDateString());
-  const uniqueAttendants = [...new Set(records.map(record => record.attendant))];
-  const averageService = records.length > 0 ? totalRevenue / records.length : 0;
-
-  // Calculate additional metrics
-  const mpesaRecords = records.filter(r => r.paymentMethod === 'Mpesa');
-  const cashRecords = records.filter(r => r.paymentMethod === 'Cash');
-  const mpesaRevenue = mpesaRecords.reduce((sum, record) => sum + record.amountPaid, 0);
-  const cashRevenue = cashRecords.reduce((sum, record) => sum + record.amountPaid, 0);
+export function Dashboard({ records, dashboardStats, todayStats, weekStats, monthStats }: DashboardProps) {
+  // Use backend stats if available, otherwise calculate locally
+  const totalRevenue = dashboardStats?.totalRevenue ?? records.reduce((sum, record) => sum + record.amountPaid, 0);
+  const totalServices = dashboardStats?.totalServices ?? records.length;
+  const uniqueAttendants = dashboardStats?.uniqueAttendants ?? [...new Set(records.map(record => record.attendant))].length;
+  const averageService = dashboardStats?.averageService ?? (records.length > 0 ? totalRevenue / records.length : 0);
+  
+  // Use backend payment breakdown if available
+  const mpesaCount = dashboardStats?.paymentBreakdown?.mpesa?.count ?? records.filter(r => r.paymentMethod === 'Mpesa').length;
+  const mpesaRevenue = dashboardStats?.paymentBreakdown?.mpesa?.revenue ?? records.filter(r => r.paymentMethod === 'Mpesa').reduce((sum, record) => sum + record.amountPaid, 0);
+  const cashCount = dashboardStats?.paymentBreakdown?.cash?.count ?? records.filter(r => r.paymentMethod === 'Cash').length;
+  const cashRevenue = dashboardStats?.paymentBreakdown?.cash?.revenue ?? records.filter(r => r.paymentMethod === 'Cash').reduce((sum, record) => sum + record.amountPaid, 0);
+  
+  // For today's records, we still need to calculate locally since backend doesn't provide this breakdown
+  const today = new Date();
+  const todayString = today.toLocaleDateString();
+  
+  const todayRecords = records.filter(record => {
+    // Handle both string dates and timestamp dates
+    if (record.createdAt && record.createdAt.toDate) {
+      // Firestore timestamp
+      const recordDate = record.createdAt.toDate();
+      return recordDate.toDateString() === today.toDateString();
+    } else if (record.date) {
+      // For sample data, use a more flexible comparison
+      const recordDateStr = record.date;
+      
+      // Try to parse the record date and compare with today
+      try {
+        const recordDate = new Date(recordDateStr);
+        const todayDate = new Date();
+        
+        // Compare year, month, and day
+        return recordDate.getFullYear() === todayDate.getFullYear() &&
+               recordDate.getMonth() === todayDate.getMonth() &&
+               recordDate.getDate() === todayDate.getDate();
+      } catch (e) {
+        // If parsing fails, try direct string comparison as fallback
+        return recordDateStr === todayString;
+      }
+    }
+    return false;
+  });
   
   // Get current week records
   const currentWeek = new Date();
@@ -38,8 +74,8 @@ export function Dashboard({ records }: DashboardProps) {
   const stats = [
     {
       title: "Total Services",
-      value: records.length.toString(),
-      subtitle: `This Month: ${monthRecords.length}`,
+      value: totalServices.toString(),
+      subtitle: `This Month: ${monthStats?.totalServices ?? monthRecords.length}`,
       icon: Car,
       color: "text-blue-600",
       bgColor: "bg-blue-50"
@@ -47,22 +83,22 @@ export function Dashboard({ records }: DashboardProps) {
     {
       title: "Total Revenue",
       value: `KSh ${totalRevenue.toLocaleString()}`,
-      subtitle: `This Month: KSh ${monthRecords.reduce((sum, r) => sum + r.amountPaid, 0).toLocaleString()}`,
+      subtitle: `This Month: KSh ${(monthStats?.totalRevenue ?? monthRecords.reduce((sum, r) => sum + r.amountPaid, 0)).toLocaleString()}`,
       icon: DollarSign,
       color: "text-green-600",
       bgColor: "bg-green-50"
     },
     {
       title: "Today's Services",
-      value: todayRecords.length.toString(),
-      subtitle: `This Week: ${weekRecords.length}`,
+      value: (todayStats?.totalServices ?? todayRecords.length).toString(),
+      subtitle: `This Week: ${weekStats?.totalServices ?? weekRecords.length}`,
       icon: Calendar,
       color: "text-purple-600",
       bgColor: "bg-purple-50"
     },
     {
       title: "Active Staff",
-      value: uniqueAttendants.length.toString(),
+      value: uniqueAttendants.toString(),
       subtitle: `Avg Service: KSh ${averageService.toFixed(0)}`,
       icon: Users,
       color: "text-orange-600",
@@ -160,26 +196,20 @@ export function Dashboard({ records }: DashboardProps) {
               <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
                 <div>
                   <p className="font-semibold text-green-800">M-Pesa Payments</p>
-                  <p className="text-sm text-green-600">{mpesaRecords.length} transactions</p>
+                  <p className="text-sm text-green-600">{mpesaCount} transactions</p>
                 </div>
                 <div className="text-right">
                   <p className="font-bold text-green-800">KSh {mpesaRevenue.toLocaleString()}</p>
-                  <p className="text-xs text-green-600">
-                    {records.length > 0 ? ((mpesaRevenue / totalRevenue) * 100).toFixed(1) : 0}% of total
-                  </p>
                 </div>
               </div>
               
               <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
                 <div>
                   <p className="font-semibold text-blue-800">Cash Payments</p>
-                  <p className="text-sm text-blue-600">{cashRecords.length} transactions</p>
+                  <p className="text-sm text-blue-600">{cashCount} transactions</p>
                 </div>
                 <div className="text-right">
                   <p className="font-bold text-blue-800">KSh {cashRevenue.toLocaleString()}</p>
-                  <p className="text-xs text-blue-600">
-                    {records.length > 0 ? ((cashRevenue / totalRevenue) * 100).toFixed(1) : 0}% of total
-                  </p>
                 </div>
               </div>
             </div>
@@ -192,25 +222,21 @@ export function Dashboard({ records }: DashboardProps) {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {uniqueAttendants.length > 0 ? (
-                uniqueAttendants.map(attendant => {
-                  const attendantRecords = records.filter(r => r.attendant === attendant);
-                  const attendantRevenue = attendantRecords.reduce((sum, r) => sum + r.amountPaid, 0);
-                  return (
-                    <div key={attendant} className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
-                      <div>
-                        <p className="font-medium">{attendant}</p>
-                        <p className="text-sm text-muted-foreground">{attendantRecords.length} services</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-semibold">KSh {attendantRevenue.toLocaleString()}</p>
-                        <p className="text-xs text-muted-foreground">
-                          Avg: KSh {(attendantRevenue / attendantRecords.length).toFixed(0)}
-                        </p>
-                      </div>
+              {dashboardStats?.staffPerformance && dashboardStats.staffPerformance.length > 0 ? (
+                dashboardStats.staffPerformance.map(staff => (
+                  <div key={staff.attendant} className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
+                    <div>
+                      <p className="font-medium">{staff.attendant}</p>
+                      <p className="text-sm text-muted-foreground">{staff.services} services</p>
                     </div>
-                  );
-                })
+                    <div className="text-right">
+                      <p className="font-semibold">KSh {staff.revenue.toLocaleString()}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Avg: KSh {staff.averageService.toFixed(0)}
+                      </p>
+                    </div>
+                  </div>
+                ))
               ) : (
                 <p className="text-center text-muted-foreground py-4">No staff data available</p>
               )}
@@ -229,24 +255,24 @@ export function Dashboard({ records }: DashboardProps) {
             <div className="p-4 bg-blue-50 rounded-lg">
               <h4 className="font-semibold mb-2 text-blue-800">Today</h4>
               <div className="space-y-1 text-sm">
-                <p className="font-bold text-blue-900">{todayRecords.length} services</p>
-                <p className="text-blue-600">KSh {todayRecords.reduce((sum, r) => sum + r.amountPaid, 0).toLocaleString()}</p>
+                <p className="font-bold text-blue-900">{todayStats?.totalServices ?? todayRecords.length} services</p>
+                <p className="text-blue-600">KSh {(todayStats?.totalRevenue ?? todayRecords.reduce((sum, r) => sum + r.amountPaid, 0)).toLocaleString()}</p>
               </div>
             </div>
             
             <div className="p-4 bg-purple-50 rounded-lg">
               <h4 className="font-semibold mb-2 text-purple-800">This Week</h4>
               <div className="space-y-1 text-sm">
-                <p className="font-bold text-purple-900">{weekRecords.length} services</p>
-                <p className="text-purple-600">KSh {weekRecords.reduce((sum, r) => sum + r.amountPaid, 0).toLocaleString()}</p>
+                <p className="font-bold text-purple-900">{weekStats?.totalServices ?? weekRecords.length} services</p>
+                <p className="text-purple-600">KSh {(weekStats?.totalRevenue ?? weekRecords.reduce((sum, r) => sum + r.amountPaid, 0)).toLocaleString()}</p>
               </div>
             </div>
             
             <div className="p-4 bg-green-50 rounded-lg">
               <h4 className="font-semibold mb-2 text-green-800">This Month</h4>
               <div className="space-y-1 text-sm">
-                <p className="font-bold text-green-900">{monthRecords.length} services</p>
-                <p className="text-green-600">KSh {monthRecords.reduce((sum, r) => sum + r.amountPaid, 0).toLocaleString()}</p>
+                <p className="font-bold text-green-900">{monthStats?.totalServices ?? monthRecords.length} services</p>
+                <p className="text-green-600">KSh {(monthStats?.totalRevenue ?? monthRecords.reduce((sum, r) => sum + r.amountPaid, 0)).toLocaleString()}</p>
               </div>
             </div>
             

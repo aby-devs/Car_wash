@@ -4,13 +4,14 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Search, Calendar, User, Car, CreditCard, Clock, Filter } from "lucide-react";
-import { CarWashRecord } from "./CarWashRecord";
+import { CarWashRecord, DashboardStats } from "./CarWashRecord";
 
 interface CarWashRecordsProps {
   records: CarWashRecord[];
+  todayStats?: DashboardStats | null;
 }
 
-export function CarWashRecords({ records }: CarWashRecordsProps) {
+export function CarWashRecords({ records, todayStats }: CarWashRecordsProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterPayment, setFilterPayment] = useState<"All" | "Cash" | "Mpesa">("All");
 
@@ -26,17 +27,46 @@ export function CarWashRecords({ records }: CarWashRecordsProps) {
 
   // Enhanced analytics
   const totalRevenue = records.reduce((sum, record) => sum + record.amountPaid, 0);
-  const todayRecords = records.filter(record => record.date === new Date().toLocaleDateString());
+  
+  // Fix today's records calculation - handle different date formats
+  const today = new Date();
+  const todayString = today.toLocaleDateString();
+  
+  // Debug: Log the date values to console
+  console.log('Today string:', todayString);
+  console.log('Sample record dates:', records.map(r => r.date));
+  
+  const todayRecords = records.filter(record => {
+    // Handle both string dates and timestamp dates
+    if (record.createdAt && record.createdAt.toDate) {
+      // Firestore timestamp
+      const recordDate = record.createdAt.toDate();
+      return recordDate.toDateString() === today.toDateString();
+    } else if (record.date) {
+      // For sample data, use a more flexible comparison
+      const recordDateStr = record.date;
+      
+      // Try to parse the record date and compare with today
+      try {
+        const recordDate = new Date(recordDateStr);
+        const todayDate = new Date();
+        
+        // Compare year, month, and day
+        return recordDate.getFullYear() === todayDate.getFullYear() &&
+               recordDate.getMonth() === todayDate.getMonth() &&
+               recordDate.getDate() === todayDate.getDate();
+      } catch (e) {
+        // If parsing fails, try direct string comparison as fallback
+        return recordDateStr === todayString;
+      }
+    }
+    return false;
+  });
+  
   const weeklyRevenue = filteredRecords.reduce((sum, record) => sum + record.amountPaid, 0);
   const averageTransaction = filteredRecords.length > 0 ? weeklyRevenue / filteredRecords.length : 0;
   
-  // Top performing metrics
-  const uniqueAttendants = [...new Set(records.map(record => record.attendant))];
-  const topAttendant = uniqueAttendants.reduce((top, attendant) => {
-    const count = records.filter(r => r.attendant === attendant).length;
-    const topCount = records.filter(r => r.attendant === top).length;
-    return count > topCount ? attendant : top;
-  }, uniqueAttendants[0] || "N/A");
+
   
   // Payment method breakdown
   const mpesaCount = filteredRecords.filter(r => r.paymentMethod === 'Mpesa').length;
@@ -56,7 +86,7 @@ export function CarWashRecords({ records }: CarWashRecordsProps) {
             </CardDescription>
           </div>
           
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
+          <div className="flex gap-3 text-center">
             <div className="bg-primary/10 rounded-lg p-3">
               <div className="text-xl font-bold text-primary">{filteredRecords.length}</div>
               <div className="text-xs text-muted-foreground">Filtered Records</div>
@@ -68,10 +98,6 @@ export function CarWashRecords({ records }: CarWashRecordsProps) {
             <div className="bg-accent/10 rounded-lg p-3">
               <div className="text-xl font-bold text-accent">KSh {averageTransaction.toFixed(0)}</div>
               <div className="text-xs text-muted-foreground">Avg Transaction</div>
-            </div>
-            <div className="bg-orange-100 rounded-lg p-3">
-              <div className="text-xl font-bold text-orange-600">{topAttendant}</div>
-              <div className="text-xs text-muted-foreground">Top Performer</div>
             </div>
           </div>
         </div>
@@ -128,20 +154,12 @@ export function CarWashRecords({ records }: CarWashRecordsProps) {
                   <span className="font-medium text-green-800">M-Pesa</span>
                   <div className="text-right">
                     <span className="font-bold text-green-900">{mpesaCount} transactions</span>
-                    <br />
-                    <span className="text-sm text-green-600">
-                      {filteredRecords.length > 0 ? ((mpesaCount / filteredRecords.length) * 100).toFixed(1) : 0}%
-                    </span>
                   </div>
                 </div>
                 <div className="flex justify-between items-center p-2 bg-blue-50 rounded">
                   <span className="font-medium text-blue-800">Cash</span>
                   <div className="text-right">
                     <span className="font-bold text-blue-900">{cashCount} transactions</span>
-                    <br />
-                    <span className="text-sm text-blue-600">
-                      {filteredRecords.length > 0 ? ((cashCount / filteredRecords.length) * 100).toFixed(1) : 0}%
-                    </span>
                   </div>
                 </div>
               </div>
@@ -169,7 +187,7 @@ export function CarWashRecords({ records }: CarWashRecordsProps) {
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Today's Revenue:</span>
                   <span className="font-bold">
-                    KSh {todayRecords.reduce((sum, r) => sum + r.amountPaid, 0).toLocaleString()}
+                    KSh {(todayStats?.totalRevenue ?? todayRecords.reduce((sum, r) => sum + r.amountPaid, 0)).toLocaleString()}
                   </span>
                 </div>
               </div>

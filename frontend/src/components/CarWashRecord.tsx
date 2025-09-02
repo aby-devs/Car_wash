@@ -22,15 +22,41 @@ export interface CarWashRecord {
   time: string;
   status?: 'Completed' | 'Pending' | 'In Progress';
   mpesaCode?: string;
+  createdAt?: any;
+  updatedAt?: any;
+}
+
+export interface DashboardStats {
+  totalRevenue: number;
+  totalServices: number;
+  uniqueAttendants: number;
+  averageService: number;
+  paymentBreakdown: {
+    mpesa: {
+      count: number;
+      revenue: number;
+    };
+    cash: {
+      count: number;
+      revenue: number;
+    };
+  };
+  staffPerformance: Array<{
+    attendant: string;
+    services: number;
+    revenue: number;
+    averageService: number;
+  }>;
+  recentRecords: CarWashRecord[];
 }
 
 interface CarWashRecordFormProps {
-  onAddRecord: (record: Omit<CarWashRecord, 'id'>) => void;
+  onAddRecord: (record: Omit<CarWashRecord, 'id' | 'date' | 'time' | 'status' | 'createdAt' | 'updatedAt'>) => void;
 }
 
 interface ServiceManagementProps {
   records: CarWashRecord[];
-  onAddRecord: (record: Omit<CarWashRecord, 'id'>) => void;
+  onAddRecord: (record: Omit<CarWashRecord, 'id' | 'date' | 'time' | 'status' | 'createdAt' | 'updatedAt'>) => void;
 }
 
 export function ServiceManagement({ records, onAddRecord }: ServiceManagementProps) {
@@ -49,7 +75,7 @@ export function ServiceManagement({ records, onAddRecord }: ServiceManagementPro
     mpesaCode: ''
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!formData.registrationNumber || !formData.carModel || !formData.services || 
@@ -71,17 +97,17 @@ export function ServiceManagement({ records, onAddRecord }: ServiceManagementPro
       return;
     }
 
-    const now = new Date();
-    const record: Omit<CarWashRecord, 'id'> = {
-      ...formData,
+    const record: Omit<CarWashRecord, 'id' | 'date' | 'time' | 'status' | 'createdAt' | 'updatedAt'> = {
+      registrationNumber: formData.registrationNumber,
+      carModel: formData.carModel,
+      services: formData.services,
       amountPaid: parseFloat(formData.amountPaid),
       paymentMethod: formData.paymentMethod as 'Cash' | 'Mpesa',
-      date: now.toLocaleDateString(),
-      time: now.toLocaleTimeString(),
-      status: 'Pending'
+      attendant: formData.attendant,
+      ...(formData.paymentMethod === 'Mpesa' && formData.mpesaCode && { mpesaCode: formData.mpesaCode })
     };
 
-    onAddRecord(record);
+    await onAddRecord(record);
     
     // Reset form
     setFormData({
@@ -95,10 +121,6 @@ export function ServiceManagement({ records, onAddRecord }: ServiceManagementPro
     });
 
     setShowForm(false);
-    toast({
-      title: "Service Record Added",
-      description: "Car wash service has been successfully recorded.",
-    });
   };
 
   const handleInputChange = (field: string, value: string) => {
@@ -268,10 +290,9 @@ export function ServiceManagement({ records, onAddRecord }: ServiceManagementPro
             </CardHeader>
             <CardContent className="p-6">
               <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <Label htmlFor="registrationNumber" className="flex items-center gap-2">
-                      <Car className="h-4 w-4" />
+                    <Label htmlFor="registrationNumber" className="text-sm font-medium">
                       Registration Number
                     </Label>
                     <Input
@@ -279,51 +300,62 @@ export function ServiceManagement({ records, onAddRecord }: ServiceManagementPro
                       placeholder="e.g., KCA 123A"
                       value={formData.registrationNumber}
                       onChange={(e) => handleInputChange('registrationNumber', e.target.value)}
-                      className="transition-all duration-200 focus:ring-2 focus:ring-primary/20"
+                      className="h-10"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="carModel">Car Model</Label>
+                    <Label htmlFor="carModel" className="text-sm font-medium">
+                      Car Model
+                    </Label>
                     <Input
                       id="carModel"
                       placeholder="e.g., Toyota Camry"
                       value={formData.carModel}
                       onChange={(e) => handleInputChange('carModel', e.target.value)}
-                      className="transition-all duration-200 focus:ring-2 focus:ring-primary/20"
+                      className="h-10"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="services">Services Offered</Label>
+                    <Label htmlFor="services" className="text-sm font-medium">
+                      Services Offered
+                    </Label>
                     <Input
                       id="services"
                       placeholder="e.g., Exterior wash, Interior cleaning, Waxing..."
                       value={formData.services}
                       onChange={(e) => handleInputChange('services', e.target.value)}
-                      className="transition-all duration-200 focus:ring-2 focus:ring-primary/20"
+                      className="h-10"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="amountPaid" className="flex items-center gap-2">
-                      <CreditCard className="h-4 w-4" />
+                    <Label htmlFor="amountPaid" className="text-sm font-medium">
                       Amount Paid (KSh)
                     </Label>
                     <Input
                       id="amountPaid"
-                      type="number"
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
                       placeholder="0.00"
                       value={formData.amountPaid}
-                      onChange={(e) => handleInputChange('amountPaid', e.target.value)}
-                      className="transition-all duration-200 focus:ring-2 focus:ring-primary/20"
+                      onChange={(e) => {
+                        // Only allow numbers and decimal point
+                        const value = e.target.value.replace(/[^0-9.]/g, '');
+                        handleInputChange('amountPaid', value);
+                      }}
+                      className="h-10 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="paymentMethod">Payment Method</Label>
+                    <Label htmlFor="paymentMethod" className="text-sm font-medium">
+                      Payment Method
+                    </Label>
                     <Select value={formData.paymentMethod} onValueChange={(value) => handleInputChange('paymentMethod', value)}>
-                      <SelectTrigger className="transition-all duration-200 focus:ring-2 focus:ring-primary/20">
+                      <SelectTrigger className="h-10">
                         <SelectValue placeholder="Select payment method" />
                       </SelectTrigger>
                       <SelectContent>
@@ -334,28 +366,29 @@ export function ServiceManagement({ records, onAddRecord }: ServiceManagementPro
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="attendant" className="flex items-center gap-2">
-                      <User className="h-4 w-4" />
-                      Attempt
+                    <Label htmlFor="attendant" className="text-sm font-medium">
+                      Attendant
                     </Label>
                     <Input
                       id="attendant"
                       placeholder="Person name"
                       value={formData.attendant}
                       onChange={(e) => handleInputChange('attendant', e.target.value)}
-                      className="transition-all duration-200 focus:ring-2 focus:ring-primary/20"
+                      className="h-10"
                     />
                   </div>
 
                   {formData.paymentMethod === 'Mpesa' && (
                     <div className="space-y-2">
-                      <Label htmlFor="mpesaCode">M-Pesa Code</Label>
+                      <Label htmlFor="mpesaCode" className="text-sm font-medium">
+                        M-Pesa Code
+                      </Label>
                       <Input
                         id="mpesaCode"
                         placeholder="Enter M-Pesa transaction code"
                         value={formData.mpesaCode}
                         onChange={(e) => handleInputChange('mpesaCode', e.target.value)}
-                        className="transition-all duration-200 focus:ring-2 focus:ring-primary/20"
+                        className="h-10"
                       />
                     </div>
                   )}

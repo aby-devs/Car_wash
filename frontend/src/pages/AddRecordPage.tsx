@@ -1,22 +1,11 @@
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { CarWashRecordForm, CarWashRecord, ServiceManagement } from "./CarWashRecord";
-import { CarWashRecords } from "./CarWashRecords";
-import { Dashboard } from "./Dashboard";
-// import { AppSidebar } from "./AppSidebar"; // No longer needed with page-based routing
-import { Car, Database, Menu, Loader2 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { ServiceManagement } from "@/components/CarWashRecord";
+import { CarWashRecord } from "@/components/CarWashRecord";
 import { apiService } from "@/services/api";
+import { useToast } from "@/hooks/use-toast";
 
-
-
-export function CarWashApp() {
+export function AddRecordPage() {
   const [records, setRecords] = useState<CarWashRecord[]>([]);
-  const [activeTab, setActiveTab] = useState(() => {
-    // Get the active tab from localStorage, default to "dashboard"
-    return localStorage.getItem('carWashActiveTab') || "dashboard";
-  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
@@ -25,11 +14,6 @@ export function CarWashApp() {
   useEffect(() => {
     loadRecords();
   }, []);
-
-  // Save active tab to localStorage whenever it changes
-  useEffect(() => {
-    localStorage.setItem('carWashActiveTab', activeTab);
-  }, [activeTab]);
 
   const loadRecords = async () => {
     try {
@@ -76,31 +60,9 @@ export function CarWashApp() {
     }
   };
 
-
-
-  const renderContent = () => {
-    switch (activeTab) {
-      case "dashboard":
-        return <Dashboard records={records} />;
-      case "add-record":
-        return <ServiceManagement records={records} onAddRecord={handleAddRecord} />;
-      case "records":
-        return <CarWashRecords records={records} />;
-      default:
-        return <Dashboard records={records} />;
-    }
-  };
-
   return (
     <div className="container mx-auto p-4 md:p-6">
-      {/* Legacy component - now just renders content without sidebar */}
-      <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-        <p className="text-yellow-800 text-sm">
-          <strong>Note:</strong> This is the legacy component-based view. 
-          The new page-based navigation is now active. Use the sidebar to navigate between pages.
-        </p>
-      </div>
-      {renderContent()}
+      <ServiceManagement records={records} onAddRecord={handleAddRecord} />
     </div>
   );
 }

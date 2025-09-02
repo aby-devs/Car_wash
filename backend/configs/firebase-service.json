@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "car-wash-37f43",
+  "private_key_id": "da0d4c72260e4eee1ab0ddfec70ff42a094a2fdf",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDXNwuSXTp8aQdD\nfEME+SjQ9SzlvIW6tZmgvBQCvNqRgmgmeyvLDwb50BLw27DtOdboYLfDEkF4FeMd\n+SngHVAveu+gijEMimvCKGRG6NT+WJNWOSvz8RDz0uRmoqKldTsAGhDiRZHjLFr6\nT46DFHZ0UwzEYRTOH0azNyAeex6mz++g0N53DG6N7OreHfvaVsbdY5gHRgwoh2Wg\nz/CKZB4yvefh3rQkAMWpfwsYWfcQljEYQyVRaq3YVfBo2+Fvg1UBopF/BYOzz9gu\nBW0fDi6/xXmi9nJHIy3M8XWqEsOLH1aYR0mroED3PepPevDrl1X0jNoBUGAOYNpW\nbM1J+JNPAgMBAAECggEAMDABBUqel9CkcbXXA7wOKYtb/CyT/NRAi77Q9DP49G+w\nhj059wNsWm7+brOiD9vNhMZzHthtlEfCTKnHeIjXtWnfUaDfjqFHs3d7zGzBlBmd\nE8dFUh993jowLdLofAedqE4tzZwqKCV8UWOS00K3qyAVUbsy/1v9Zo9HP8vtdwfa\n0N85KeY0gdl7qMk9WbYY948VaTnHmur5RipRTQyg9EM9ndo5NfopLR6zdOiTIDqj\n6mjhodIM+lO+nUY280QKK6OMTSwbgE8Jd3IUSDsx57YXxBJYK8bWgln+gND7dcjX\nlpWTC6QEuFeXwBAvN39e8RJG4ZY+TCE6IKAoDKrScQKBgQDq4GcZvwLdwfdTIPKS\nKj43DOmFU6g1j2Au3WBgl1e77nfjEkEQozgXIdn3zsBe0u1sztzbYR1PvhhUuxQr\nwPGoZBlvAFKue5x1ArAyblBqkhsV+67MQnAZc0ti/x70wzl3aeNgaNWHFsBGgLGN\n7dmLKR70Au4I2G3g5x+dWQovjQKBgQDqkfjA90WkVcgRVOXNN5b/TJXmUGYaEQfg\nvFM0Z59h3gmfmy0qE55xV6vDtNs5q6RMT5ir7+OY2nsj+5LzGatLabENRKqoD/8E\n2UaUW0QP17FOk3Whp6A7pv6l3IrZTgQiQMIFOQnfqITlTi1dIoq0ALAE1xyGReck\nP9gLU095SwKBgDZSIeYldA8/jejO5OsDFBJ9TQDF4VBJ0Y/lKSYNun+/XkDI9v1X\nEmDfNl8GlR0ZIUoZ6aBfLH1F1LC796VK4Vj1laBDbdvmwL+bGI8BTl3nXpZN+BZL\ng0uPi67gnBM1l3PTrH+en0u36k4j82yExtxVbVA34T9wdrEeIwSsFBv9AoGAODyG\nxryBlcR7Eqyn62tIaCyUQ4NC9zzeBqMfz5CIRY5WAE3TpiLN+Z5rL6BMbqcX3LO4\nhoAcsKiwnQ/TSzT8PDg6mlO8Fk6/dQoiQa8fwiyT9aKksPzfDW4b3ufg4fgyRYQA\n//+MvnJIajEz7wA5AK6phH+N9yMLJ0WnJg/zHcECgYEAlRmheBp0I6mFs1HzS7cJ\nftpGzBG7WNB3EOel7ihjvy9IJoBr9AZYxh1DknSW1TTmbMJTuI/jfhlM8EB2vqIT\nYXK0z35SVD1otYVuIfyUIosp+rQWdxB76pX5O4TkmooVZEhzi7QzRgJt7gkFTcTR\nFQwjyFUvKwY/Wrh5NokdwkU=\n-----END PRIVATE KEY-----\n",
+  "client_email": "firebase-adminsdk-fbsvc@car-wash-37f43.iam.gserviceaccount.com",
+  "client_id": "101764386121185850372",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-fbsvc%40car-wash-37f43.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
