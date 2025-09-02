@@ -32,10 +32,6 @@ export function CarWashRecords({ records, todayStats }: CarWashRecordsProps) {
   const today = new Date();
   const todayString = today.toLocaleDateString();
   
-  // Debug: Log the date values to console
-  console.log('Today string:', todayString);
-  console.log('Sample record dates:', records.map(r => r.date));
-  
   const todayRecords = records.filter(record => {
     // Handle both string dates and timestamp dates
     if (record.createdAt && record.createdAt.toDate) {

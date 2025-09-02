@@ -12,6 +12,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
+
 const menuItems = [
   { title: "Dashboard", path: "/", icon: BarChart3 },
   { title: "Add Service", path: "/add-record", icon: FileText },
@@ -20,14 +21,23 @@ const menuItems = [
 ];
 
 export function AppSidebar() {
-  const { state } = useSidebar();
+  const { state, setOpenMobile, isMobile } = useSidebar();
   const location = useLocation();
   const isCollapsed = state === "collapsed";
 
   const isActive = (path: string) => location.pathname === path;
 
+  const handleMenuClick = () => {
+    // Close mobile sidebar when menu item is clicked
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  };
+
   return (
     <Sidebar collapsible="icon">
+      {/* Add hidden title for accessibility */}
+      <h2 className="sr-only">Navigation Menu</h2>
       <SidebarContent className="bg-card border-r">
         {/* Header */}
         <div className={`${isCollapsed ? 'p-2' : 'p-4'} border-b`}>
@@ -62,7 +72,7 @@ export function AppSidebar() {
                         : "hover:bg-muted"
                     }`}
                   >
-                    <Link to={item.path}>
+                    <Link to={item.path} onClick={handleMenuClick}> 
                       <item.icon className="h-4 w-4" />
                       {!isCollapsed && <span className="ml-3">{item.title}</span>}
                     </Link>

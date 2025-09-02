@@ -63,7 +63,8 @@ export function ServiceManagement({ records, onAddRecord }: ServiceManagementPro
   const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('All Status');
+  const [dateFilter, setDateFilter] = useState('');
+  const [paymentFilter, setPaymentFilter] = useState('All Payment');
 
   const [formData, setFormData] = useState({
     registrationNumber: '',
@@ -139,10 +140,23 @@ export function ServiceManagement({ records, onAddRecord }: ServiceManagementPro
 
   const filteredRecords = records.filter(record => {
     const matchesSearch = record.registrationNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         record.carModel.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         record.id.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'All Status' || record.status === statusFilter;
-    return matchesSearch && matchesStatus;
+                         record.attendant.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    // Date filtering - convert record date to YYYY-MM-DD format for comparison
+    let matchesDate = true;
+    if (dateFilter) {
+      try {
+        const recordDate = new Date(record.date);
+        const filterDate = new Date(dateFilter);
+        matchesDate = recordDate.toDateString() === filterDate.toDateString();
+      } catch (error) {
+        // If date parsing fails, don't filter by date
+        matchesDate = true;
+      }
+    }
+    
+    const matchesPayment = paymentFilter === 'All Payment' || record.paymentMethod === paymentFilter;
+    return matchesSearch && matchesDate && matchesPayment;
   });
 
   const getStatusColor = (status: string) => {
@@ -157,14 +171,14 @@ export function ServiceManagement({ records, onAddRecord }: ServiceManagementPro
   return (
     <div className="space-y-6">
       {/* Header Section */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Service Management</h1>
-          <p className="text-gray-600">Manage car wash services, track revenue, and monitor transactions</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Service Management</h1>
+          <p className="text-sm sm:text-base text-gray-600">Manage car wash services, track revenue, and monitor transactions</p>
         </div>
         <Button 
           onClick={() => setShowForm(true)} 
-          className="bg-blue-600 hover:bg-blue-700 text-white"
+          className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white"
         >
           <Plus className="mr-2 h-4 w-4" />
           Add New Record
@@ -173,31 +187,50 @@ export function ServiceManagement({ records, onAddRecord }: ServiceManagementPro
 
       {/* Search and Filter Section */}
       <Card>
-        <CardContent className="p-6">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1 relative">
+        <CardContent className="p-4 sm:p-6">
+          <div className="flex flex-col gap-4">
+            <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
               <Input
-                placeholder="Search by registration number or service ID..."
+                placeholder="Search by registration number or attendant name..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
               />
             </div>
-            <div className="flex gap-2">
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-40">
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Input
+                type="date"
+                value={dateFilter}
+                onChange={(e) => setDateFilter(e.target.value)}
+                className="w-full sm:w-40"
+                placeholder="Filter by date"
+              />
+              <Select value={paymentFilter} onValueChange={setPaymentFilter}>
+                <SelectTrigger className="w-full sm:w-40">
                   <Filter className="mr-2 h-4 w-4" />
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="All Status">All Status</SelectItem>
-                  <SelectItem value="Completed">Completed</SelectItem>
-                  <SelectItem value="Pending">Pending</SelectItem>
-                  <SelectItem value="In Progress">In Progress</SelectItem>
+                  <SelectItem value="All Payment">All Payment</SelectItem>
+                  <SelectItem value="Cash">Cash</SelectItem>
+                  <SelectItem value="Mpesa">M-Pesa</SelectItem>
                 </SelectContent>
               </Select>
-              <Button variant="outline" size="sm">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => {
+                  setSearchTerm('');
+                  setDateFilter('');
+                  setPaymentFilter('All Payment');
+                }}
+                className="w-full sm:w-auto"
+              >
+                <X className="mr-2 h-4 w-4" />
+                Clear Filters
+              </Button>
+              <Button variant="outline" size="sm" className="w-full sm:w-auto">
                 <Download className="mr-2 h-4 w-4" />
                 Export
               </Button>
@@ -212,36 +245,19 @@ export function ServiceManagement({ records, onAddRecord }: ServiceManagementPro
           <CardTitle>Service Orders</CardTitle>
           <CardDescription>View and manage all car wash service transactions</CardDescription>
         </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Registration Number</TableHead>
-                <TableHead>Model</TableHead>
-                <TableHead>Services</TableHead>
-                <TableHead>Amount (KSh)</TableHead>
-                <TableHead>Payment Method</TableHead>
-                <TableHead>M-Pesa Code</TableHead>
-                <TableHead>Attempt</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredRecords.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-gray-500">
-                    No service records found. Click "Add New Record" to add your first record.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredRecords.map((record) => (
-                  <TableRow key={record.id}>
-                    <TableCell className="font-medium">{formatDate(record.date)}</TableCell>
-                    <TableCell>{record.registrationNumber}</TableCell>
-                    <TableCell>{record.carModel}</TableCell>
-                    <TableCell className="max-w-xs truncate">{record.services}</TableCell>
-                    <TableCell>KSh {record.amountPaid.toLocaleString()}</TableCell>
-                    <TableCell>
+        <CardContent className="p-0 sm:p-6">
+          {/* Mobile Card View */}
+          <div className="block sm:hidden">
+            {filteredRecords.length === 0 ? (
+              <div className="text-center py-8 text-gray-500 px-4">
+                No service records found. Click "Add New Record" to add your first record.
+              </div>
+            ) : (
+              <div className="space-y-3 p-4">
+                {filteredRecords.map((record) => (
+                  <div key={record.id} className="border rounded-lg p-4 space-y-2">
+                    <div className="flex justify-between items-start">
+                      <div className="font-medium text-sm">{record.registrationNumber}</div>
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                         record.paymentMethod === 'Mpesa' 
                           ? 'bg-green-100 text-green-800' 
@@ -249,27 +265,85 @@ export function ServiceManagement({ records, onAddRecord }: ServiceManagementPro
                       }`}>
                         {record.paymentMethod === 'Mpesa' ? 'M-Pesa' : 'Cash'}
                       </span>
-                    </TableCell>
-                    <TableCell>
-                      {record.paymentMethod === 'Mpesa' && record.mpesaCode ? (
-                        <span className="font-mono text-sm">{record.mpesaCode}</span>
-                      ) : (
-                        <span className="text-gray-400">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell>{record.attendant}</TableCell>
+                    </div>
+                    <div className="text-sm text-gray-600">{record.carModel}</div>
+                    <div className="text-sm text-gray-500 truncate">{record.services}</div>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="font-medium">KSh {record.amountPaid.toLocaleString()}</span>
+                      <span className="text-gray-500">{formatDate(record.date)}</span>
+                    </div>
+                    {record.paymentMethod === 'Mpesa' && record.mpesaCode && (
+                      <div className="text-xs text-gray-500 font-mono">{record.mpesaCode}</div>
+                    )}
+                    <div className="text-xs text-gray-500">Attendant: {record.attendant}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Desktop Table View */}
+          <div className="hidden sm:block">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Registration Number</TableHead>
+                    <TableHead>Model</TableHead>
+                    <TableHead>Services</TableHead>
+                    <TableHead>Amount (KSh)</TableHead>
+                    <TableHead>Payment Method</TableHead>
+                    <TableHead>M-Pesa Code</TableHead>
+                    <TableHead>Attempt</TableHead>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                </TableHeader>
+                <TableBody>
+                  {filteredRecords.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                        No service records found. Click "Add New Record" to add your first record.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredRecords.map((record) => (
+                      <TableRow key={record.id}>
+                        <TableCell className="font-medium">{formatDate(record.date)}</TableCell>
+                        <TableCell>{record.registrationNumber}</TableCell>
+                        <TableCell>{record.carModel}</TableCell>
+                        <TableCell className="max-w-xs truncate">{record.services}</TableCell>
+                        <TableCell>KSh {record.amountPaid.toLocaleString()}</TableCell>
+                        <TableCell>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            record.paymentMethod === 'Mpesa' 
+                              ? 'bg-green-100 text-green-800' 
+                              : 'bg-blue-100 text-blue-800'
+                          }`}>
+                            {record.paymentMethod === 'Mpesa' ? 'M-Pesa' : 'Cash'}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          {record.paymentMethod === 'Mpesa' && record.mpesaCode ? (
+                            <span className="font-mono text-sm">{record.mpesaCode}</span>
+                          ) : (
+                            <span className="text-gray-400">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell>{record.attendant}</TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
       {/* Add Service Form Modal */}
       {showForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50">
+          <Card className="w-full max-w-sm sm:max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
             <CardHeader className="relative border-b">
               <Button
                 type="button"
@@ -288,9 +362,9 @@ export function ServiceManagement({ records, onAddRecord }: ServiceManagementPro
                 Record details of the car wash service provided
               </CardDescription>
             </CardHeader>
-            <CardContent className="p-6">
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <CardContent className="p-4 sm:p-6">
+              <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                   <div className="space-y-2">
                     <Label htmlFor="registrationNumber" className="text-sm font-medium">
                       Registration Number

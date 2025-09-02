@@ -105,6 +105,7 @@ class ApiService {
         'Content-Type': 'application/json',
         ...options.headers,
       },
+      credentials: 'include', // Include cookies in requests
     };
 
     // Remove baseURL from options before passing to fetch
@@ -188,24 +189,36 @@ class ApiService {
   }
 
   // Auth API
-  async login(username: string, password: string): Promise<ApiResponse<{ sessionId: string; username: string; loginTime: string }>> {
-    return this.request('/login', {
+  async login(email: string, password: string): Promise<ApiResponse<{ 
+    user: { userId: string; email: string; name: string; role: string } 
+  }>> {
+    return this.request<{ 
+      user: { userId: string; email: string; name: string; role: string } 
+    }>('/login', {
       method: 'POST',
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ email, password }),
       baseURL: AUTH_BASE_URL,
     });
   }
 
-  async logout(sessionId: string): Promise<ApiResponse<void>> {
+  async logout(): Promise<ApiResponse<void>> {
     return this.request('/logout', {
       method: 'POST',
-      body: JSON.stringify({ sessionId }),
       baseURL: AUTH_BASE_URL,
     });
   }
 
-  async verifySession(sessionId: string): Promise<ApiResponse<{ sessionId: string; username: string; loginTime: any }>> {
-    return this.request(`/verify?sessionId=${sessionId}`, { baseURL: AUTH_BASE_URL });
+  async refreshToken(): Promise<ApiResponse<void>> {
+    return this.request('/refresh', {
+      method: 'POST',
+      baseURL: AUTH_BASE_URL,
+    });
+  }
+
+  async verifyToken(): Promise<ApiResponse<{ user: any }>> {
+    return this.request('/verify', {
+      baseURL: AUTH_BASE_URL,
+    });
   }
 
   // Settings API
@@ -243,6 +256,14 @@ class ApiService {
     
     const endpoint = `/summary${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
     return this.request<StaffSummaryData>(endpoint, { baseURL: STAFF_BASE_URL });
+  }
+
+  // Clear cookies (for debugging)
+  async clearCookies(): Promise<ApiResponse<void>> {
+    return this.request('/clear-cookies', {
+      method: 'POST',
+      baseURL: AUTH_BASE_URL,
+    });
   }
 
   // Health check

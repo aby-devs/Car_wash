@@ -3,7 +3,7 @@ const dotenv = require('dotenv');
 const path = require('path');
 const cors = require('cors');
 const morgan = require('morgan');
-
+const cookieParser = require('cookie-parser');
 
 dotenv.config();
 const app = express();
@@ -11,7 +11,11 @@ const app = express();
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(cors());
+app.use(cookieParser());
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:8080',
+  credentials: true // Allow cookies to be sent
+}));
 app.use(morgan('dev'));
 app.use(express.static(path.join(__dirname, 'dist')));
 
