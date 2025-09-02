@@ -258,14 +258,6 @@ class ApiService {
     return this.request<StaffSummaryData>(endpoint, { baseURL: STAFF_BASE_URL });
   }
 
-  // Clear cookies (for debugging)
-  async clearCookies(): Promise<ApiResponse<void>> {
-    return this.request('/clear-cookies', {
-      method: 'POST',
-      baseURL: AUTH_BASE_URL,
-    });
-  }
-
   // Health check
   async healthCheck(): Promise<ApiResponse<{ timestamp: string }>> {
     return this.request('/health', { baseURL: AUTH_BASE_URL });

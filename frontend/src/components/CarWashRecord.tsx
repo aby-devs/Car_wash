@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Car, CreditCard, User, Search, Filter, Download, Edit, Trash2, X } from "lucide-react";
+import { Plus, Car, CreditCard, User, Search, Filter, Edit, Trash2, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export interface CarWashRecord {
@@ -229,10 +229,6 @@ export function ServiceManagement({ records, onAddRecord }: ServiceManagementPro
               >
                 <X className="mr-2 h-4 w-4" />
                 Clear Filters
-              </Button>
-              <Button variant="outline" size="sm" className="w-full sm:w-auto">
-                <Download className="mr-2 h-4 w-4" />
-                Export
               </Button>
             </div>
           </div>

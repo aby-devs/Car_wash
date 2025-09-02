@@ -20,7 +20,7 @@ export function LoginPage() {
   
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { login, clearCookies } = useAuth();
+  const { login } = useAuth();
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -168,19 +168,10 @@ export function LoginPage() {
             </form>
 
             {/* Additional Info */}
-            <div className="text-center pt-4 border-t border-gray-100 space-y-2">
+            <div className="text-center pt-4 border-t border-gray-100">
               <p className="text-xs text-gray-500">
                 Contact your administrator for account access
               </p>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={clearCookies}
-                className="text-xs"
-              >
-                Clear Cookies (Debug)
-              </Button>
             </div>
           </CardContent>
         </Card>

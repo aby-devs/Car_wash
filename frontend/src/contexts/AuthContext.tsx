@@ -14,7 +14,6 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
   refreshAuthToken: () => Promise<boolean>;
-  clearCookies: () => Promise<void>;
   isAuthenticated: boolean;
 }
 
@@ -115,22 +114,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     clearAuthData();
   };
 
-  const clearCookies = async (): Promise<void> => {
-    try {
-      await apiService.clearCookies();
-      clearAuthData();
-    } catch (error) {
-      console.error('Clear cookies failed:', error);
-    }
-  };
-
   const value: AuthContextType = {
     user,
     loading,
     login,
     logout,
     refreshAuthToken,
-    clearCookies,
     isAuthenticated: !!user
   };
 
