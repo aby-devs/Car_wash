@@ -1,8 +1,8 @@
 const admin = require('firebase-admin');
 const service_account = require('./firebase-service.json');
 
-// Use the project ID from the service account to construct the database URL
-const database_url = process.env.DATABASE_URL || `https://${service_account.project_id}-default-rtdb.firebaseio.com/`;
+
+const database_url = process.env.DATABASE_URL;
 
 if(!admin.apps.length){
     admin.initializeApp({

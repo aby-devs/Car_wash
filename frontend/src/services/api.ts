@@ -1,5 +1,8 @@
 // API service for communicating with the backend
-const API_BASE_URL = import.meta.env.VITE_API_URL;
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+const RECORDS_BASE_URL = `${BASE_URL}/records`;
+const AUTH_BASE_URL = `${BASE_URL}/auth`;
+const STAFF_BASE_URL = `${BASE_URL}/staff`;
 
 export interface CarWashRecord {
   id: string;
@@ -92,9 +95,10 @@ export interface StaffSummaryData {
 class ApiService {
   private async request<T>(
     endpoint: string,
-    options: RequestInit = {}
+    options: RequestInit & { baseURL?: string } = {}
   ): Promise<ApiResponse<T>> {
-    const url = `${API_BASE_URL}${endpoint}`;
+    const baseURL = options.baseURL || BASE_URL;
+    const url = `${baseURL}${endpoint}`;
     
     const defaultOptions: RequestInit = {
       headers: {
@@ -103,8 +107,11 @@ class ApiService {
       },
     };
 
+    // Remove baseURL from options before passing to fetch
+    const { baseURL: _, ...fetchOptions } = options;
+
     try {
-      const response = await fetch(url, { ...defaultOptions, ...options });
+      const response = await fetch(url, { ...defaultOptions, ...fetchOptions });
       const data = await response.json();
 
       if (!response.ok) {
@@ -136,31 +143,34 @@ class ApiService {
       });
     }
     
-    const endpoint = `/records${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-    return this.request<CarWashRecord[]>(endpoint);
+    const endpoint = `${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    return this.request<CarWashRecord[]>(endpoint, { baseURL: RECORDS_BASE_URL });
   }
 
   async getRecord(id: string): Promise<ApiResponse<CarWashRecord>> {
-    return this.request<CarWashRecord>(`/records/${id}`);
+    return this.request<CarWashRecord>(`/${id}`, { baseURL: RECORDS_BASE_URL });
   }
 
   async addRecord(record: Omit<CarWashRecord, 'id' | 'date' | 'time' | 'status' | 'createdAt' | 'updatedAt'>): Promise<ApiResponse<CarWashRecord>> {
-    return this.request<CarWashRecord>('/records', {
+    return this.request<CarWashRecord>('', {
       method: 'POST',
       body: JSON.stringify(record),
+      baseURL: RECORDS_BASE_URL,
     });
   }
 
   async updateRecord(id: string, record: Partial<CarWashRecord>): Promise<ApiResponse<CarWashRecord>> {
-    return this.request<CarWashRecord>(`/records/${id}`, {
+    return this.request<CarWashRecord>(`/${id}`, {
       method: 'PUT',
       body: JSON.stringify(record),
+      baseURL: RECORDS_BASE_URL,
     });
   }
 
   async deleteRecord(id: string): Promise<ApiResponse<void>> {
-    return this.request<void>(`/records/${id}`, {
+    return this.request<void>(`/${id}`, {
       method: 'DELETE',
+      baseURL: RECORDS_BASE_URL,
     });
   }
 
@@ -168,50 +178,53 @@ class ApiService {
     const params = new URLSearchParams({ q: query });
     if (limit) params.append('limit', limit.toString());
     
-    return this.request<CarWashRecord[]>(`/records/search?${params.toString()}`);
+    return this.request<CarWashRecord[]>(`/search?${params.toString()}`, { baseURL: RECORDS_BASE_URL });
   }
 
   // Dashboard API
   async getDashboardStats(period?: 'all' | 'today' | 'week' | 'month'): Promise<ApiResponse<DashboardStats>> {
     const params = period ? `?period=${period}` : '';
-    return this.request<DashboardStats>(`/records/dashboard${params}`);
+    return this.request<DashboardStats>(`/dashboard${params}`, { baseURL: RECORDS_BASE_URL });
   }
 
   // Auth API
   async login(username: string, password: string): Promise<ApiResponse<{ sessionId: string; username: string; loginTime: string }>> {
-    return this.request('/auth/login', {
+    return this.request('/login', {
       method: 'POST',
       body: JSON.stringify({ username, password }),
+      baseURL: AUTH_BASE_URL,
     });
   }
 
   async logout(sessionId: string): Promise<ApiResponse<void>> {
-    return this.request('/auth/logout', {
+    return this.request('/logout', {
       method: 'POST',
       body: JSON.stringify({ sessionId }),
+      baseURL: AUTH_BASE_URL,
     });
   }
 
   async verifySession(sessionId: string): Promise<ApiResponse<{ sessionId: string; username: string; loginTime: any }>> {
-    return this.request(`/auth/verify?sessionId=${sessionId}`);
+    return this.request(`/verify?sessionId=${sessionId}`, { baseURL: AUTH_BASE_URL });
   }
 
   // Settings API
   async getSettings(): Promise<ApiResponse<any>> {
-    return this.request('/settings');
+    return this.request('/settings', { baseURL: AUTH_BASE_URL });
   }
 
   async updateSettings(settings: any): Promise<ApiResponse<any>> {
     return this.request('/settings', {
       method: 'PUT',
       body: JSON.stringify(settings),
+      baseURL: AUTH_BASE_URL,
     });
   }
 
   // Staff Commission API
   async getStaffCommission(date: string): Promise<ApiResponse<StaffCommissionData>> {
     const params = new URLSearchParams({ date });
-    return this.request<StaffCommissionData>(`/staff/commission?${params.toString()}`);
+    return this.request<StaffCommissionData>(`/commission?${params.toString()}`, { baseURL: STAFF_BASE_URL });
   }
 
   async getStaffSummary(params?: {
@@ -228,13 +241,13 @@ class ApiService {
       });
     }
     
-    const endpoint = `/staff/summary${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-    return this.request<StaffSummaryData>(endpoint);
+    const endpoint = `/summary${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    return this.request<StaffSummaryData>(endpoint, { baseURL: STAFF_BASE_URL });
   }
 
   // Health check
   async healthCheck(): Promise<ApiResponse<{ timestamp: string }>> {
-    return this.request('/health');
+    return this.request('/health', { baseURL: AUTH_BASE_URL });
   }
 }
 
