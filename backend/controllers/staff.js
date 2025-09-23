@@ -35,17 +35,18 @@ exports.get_staff_commission = async (req, res) => {
     // Calculate commission data
     const totalServices = records.length;
     const totalRevenue = records.reduce((sum, record) => sum + record.amountPaid, 0);
-    const commissionRate = 0.30; // 30% commission
-    const totalCommission = totalRevenue * commissionRate;
 
     // Get unique staff members
     const uniqueStaff = [...new Set(records.map(record => record.attendant))];
     const totalStaff = uniqueStaff.length;
 
-    // Calculate individual staff commission breakdown
+    // Calculate individual staff commission breakdown with dynamic commission rates
     const staffBreakdown = uniqueStaff.map(attendant => {
       const attendantRecords = records.filter(r => r.attendant === attendant);
       const attendantRevenue = attendantRecords.reduce((sum, r) => sum + r.amountPaid, 0);
+      
+      // Commission calculation: 20% if < 5000, 30% if >= 5000
+      const commissionRate = attendantRevenue < 5000 ? 0.20 : 0.30;
       const attendantCommission = attendantRevenue * commissionRate;
       
       return {
@@ -53,9 +54,16 @@ exports.get_staff_commission = async (req, res) => {
         services: attendantRecords.length,
         revenue: attendantRevenue,
         commission: attendantCommission,
+        commissionRate: commissionRate * 100, // Store as percentage
         averageService: attendantRecords.length > 0 ? attendantRevenue / attendantRecords.length : 0
       };
     }).sort((a, b) => b.commission - a.commission);
+
+    // Calculate total commission based on individual staff commissions
+    const totalCommission = staffBreakdown.reduce((sum, staff) => sum + staff.commission, 0);
+
+    // Calculate average commission rate
+    const averageCommissionRate = totalRevenue > 0 ? (totalCommission / totalRevenue) * 100 : 0;
 
     res.status(200).json({
       success: true,
@@ -66,7 +74,7 @@ exports.get_staff_commission = async (req, res) => {
         totalServices,
         totalRevenue,
         totalCommission,
-        commissionRate: commissionRate * 100, // Return as percentage
+        commissionRate: averageCommissionRate, // Average commission rate
         staffBreakdown
       }
     });
@@ -139,14 +147,15 @@ exports.get_staff_summary = async (req, res) => {
     // Calculate summary statistics
     const totalServices = filteredRecords.length;
     const totalRevenue = filteredRecords.reduce((sum, record) => sum + record.amountPaid, 0);
-    const commissionRate = 0.30;
-    const totalCommission = totalRevenue * commissionRate;
     const uniqueStaff = [...new Set(filteredRecords.map(record => record.attendant))];
 
-    // Top performing staff
+    // Top performing staff with dynamic commission rates
     const staffPerformance = uniqueStaff.map(attendant => {
       const attendantRecords = filteredRecords.filter(r => r.attendant === attendant);
       const attendantRevenue = attendantRecords.reduce((sum, r) => sum + r.amountPaid, 0);
+      
+      // Commission calculation: 20% if < 5000, 30% if >= 5000
+      const commissionRate = attendantRevenue < 5000 ? 0.20 : 0.30;
       const attendantCommission = attendantRevenue * commissionRate;
       
       return {
@@ -154,9 +163,14 @@ exports.get_staff_summary = async (req, res) => {
         services: attendantRecords.length,
         revenue: attendantRevenue,
         commission: attendantCommission,
+        commissionRate: commissionRate * 100, // Store as percentage
         averageService: attendantRecords.length > 0 ? attendantRevenue / attendantRecords.length : 0
       };
     }).sort((a, b) => b.commission - a.commission);
+
+    // Calculate total commission based on individual staff commissions
+    const totalCommission = staffPerformance.reduce((sum, staff) => sum + staff.commission, 0);
+    const averageCommissionRate = totalRevenue > 0 ? (totalCommission / totalRevenue) * 100 : 0;
 
     res.status(200).json({
       success: true,
@@ -168,7 +182,7 @@ exports.get_staff_summary = async (req, res) => {
         totalServices,
         totalRevenue,
         totalCommission,
-        commissionRate: commissionRate * 100,
+        commissionRate: averageCommissionRate,
         topPerformers: staffPerformance.slice(0, 5), // Top 5 performers
         staffPerformance
       }

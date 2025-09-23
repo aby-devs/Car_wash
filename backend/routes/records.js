@@ -3,6 +3,7 @@ const router = express.Router();
 const { CarWashRecords } = require('../controllers');
 
 // Car wash records routes
+router.get('/test', CarWashRecords.test_records);
 router.post('/', CarWashRecords.add_record);
 router.get('/', CarWashRecords.get_records);
 router.get('/search', CarWashRecords.search_records);

@@ -2,7 +2,7 @@ import { Outlet } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
-import { Car, Database, Loader2, LogOut, User } from "lucide-react";
+import { Car, Database, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { apiService } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
@@ -83,21 +83,6 @@ export function Layout() {
                 </Button>
               )}
               
-              {/* User Info and Logout */}
-              <div className="flex items-center gap-2 ml-4 pl-4 border-l">
-                <div className="flex items-center gap-2 text-sm">
-                  <User className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">{user?.name || user?.email}</span>
-                </div>
-                <Button 
-                  onClick={logout}
-                  variant="outline"
-                  size="sm"
-                  className="text-muted-foreground hover:text-foreground"
-                >
-                  <LogOut className="h-4 w-4" />
-                </Button>
-              </div>
             </div>
           </header>
 

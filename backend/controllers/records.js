@@ -1,5 +1,37 @@
 const { admin, service_db } = require('../configs/firebase_db');
 
+// Test endpoint to verify backend is working
+exports.test_records = async (req, res) => {
+  try {
+    console.log('Test endpoint called');
+    
+    // Get all records without any filtering
+    const snapshot = await service_db.collection('records').limit(5).get();
+    const records = [];
+    
+    snapshot.forEach(doc => {
+      records.push({
+        id: doc.id,
+        ...doc.data()
+      });
+    });
+    
+    res.status(200).json({
+      success: true,
+      message: 'Test endpoint working',
+      data: records,
+      count: records.length
+    });
+  } catch (error) {
+    console.error('Test endpoint error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Test endpoint failed',
+      error: error.message
+    });
+  }
+};
+
 // Helper function to generate service order ID
 const generateServiceOrderId = async () => {
   const currentYear = new Date().getFullYear();
@@ -90,38 +122,30 @@ exports.get_records = async (req, res) => {
   try {
     const { status, paymentMethod, attendant, startDate, endDate, limit = 100 } = req.query;
     
+    console.log('Received query parameters:', { status, paymentMethod, attendant, startDate, endDate, limit });
+    
     let query = service_db.collection('records');
 
-    // Apply filters
-    if (status && status !== 'All Status') {
-      query = query.where('status', '==', status);
-    }
-    
-    if (paymentMethod && paymentMethod !== 'All') {
-      query = query.where('paymentMethod', '==', paymentMethod);
-    }
-    
-    if (attendant) {
-      query = query.where('attendant', '==', attendant);
-    }
-
-    // Date range filtering
+    // Apply filters - prioritize date range first, then other filters
     if (startDate) {
       const start = new Date(startDate);
+      console.log('Filtering by startDate:', start);
       query = query.where('createdAt', '>=', start);
     }
     
     if (endDate) {
       const end = new Date(endDate);
       end.setHours(23, 59, 59, 999); // End of day
+      console.log('Filtering by endDate:', end);
       query = query.where('createdAt', '<=', end);
     }
 
     // Order by creation date (newest first) and limit
     query = query.orderBy('createdAt', 'desc').limit(parseInt(limit));
 
+    console.log('Executing Firestore query...');
     const snapshot = await query.get();
-    const records = [];
+    let records = [];
 
     snapshot.forEach(doc => {
       records.push({
@@ -129,6 +153,26 @@ exports.get_records = async (req, res) => {
         ...doc.data()
       });
     });
+
+    console.log(`Found ${records.length} records before filtering`);
+
+    // Apply client-side filtering for fields that don't have composite indexes
+    if (status && status !== 'All Status') {
+      records = records.filter(record => record.status === status);
+      console.log(`After status filtering: ${records.length} records`);
+    }
+    
+    if (paymentMethod && paymentMethod !== 'All') {
+      records = records.filter(record => record.paymentMethod === paymentMethod);
+      console.log(`After payment method filtering: ${records.length} records`);
+    }
+    
+    if (attendant) {
+      records = records.filter(record => record.attendant === attendant);
+      console.log(`After attendant filtering: ${records.length} records`);
+    }
+
+    console.log(`Returning ${records.length} records`);
 
     res.status(200).json({
       success: true,
@@ -139,6 +183,7 @@ exports.get_records = async (req, res) => {
 
   } catch (error) {
     console.error('Error getting records:', error);
+    console.error('Query parameters:', { status, paymentMethod, attendant, startDate, endDate, limit });
     res.status(500).json({
       success: false,
       message: 'Internal server error',

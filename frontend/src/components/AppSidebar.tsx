@@ -1,4 +1,4 @@
-import { Car, Plus, BarChart3, FileText, Users } from "lucide-react";
+import { Car, Plus, BarChart3, FileText, Users, User, LogOut } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import {
   Sidebar,
@@ -11,19 +11,22 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
 
 
 const menuItems = [
   { title: "Dashboard", path: "/", icon: BarChart3 },
   { title: "Add Service", path: "/add-record", icon: FileText },
+  { title: "Staff Commission", path: "/staff", icon: Users },
   { title: "Reports", path: "/reports", icon: FileText },
-  { title: "Staff", path: "/staff", icon: Users },
 ];
 
 export function AppSidebar() {
   const { state, setOpenMobile, isMobile } = useSidebar();
   const location = useLocation();
   const isCollapsed = state === "collapsed";
+  const { user, logout } = useAuth();
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -83,16 +86,49 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Footer Stats */}
-        {!isCollapsed && (
-          <div className="mt-auto p-4 border-t">
-            <div className="text-xs text-muted-foreground text-center">
-              Professional Car Wash
-              <br />
-              Management Solution
+        {/* Account Profile Section - Bottom */}
+        <div className="mt-auto border-t">
+          {!isCollapsed ? (
+            <div className="p-4">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2 bg-gradient-to-r from-primary to-primary-hover rounded-lg">
+                  <User className="h-4 w-4 text-primary-foreground" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold truncate text-foreground">
+                    {user?.name || user?.email || 'User'}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Administrator</p>
+                </div>
+              </div>
+              <Button
+                onClick={logout}
+                variant="outline"
+                size="sm"
+                className="w-full justify-start text-muted-foreground hover:text-foreground hover:bg-muted"
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                Sign Out
+              </Button>
             </div>
-          </div>
-        )}
+          ) : (
+            <div className="p-2">
+              <div className="flex flex-col items-center gap-2">
+                <div className="p-2 bg-gradient-to-r from-primary to-primary-hover rounded-lg">
+                  <User className="h-4 w-4 text-primary-foreground" />
+                </div>
+                <Button
+                  onClick={logout}
+                  variant="outline"
+                  size="sm"
+                  className="text-muted-foreground hover:text-foreground p-2"
+                >
+                  <LogOut className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
       </SidebarContent>
     </Sidebar>
   );

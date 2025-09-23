@@ -3,6 +3,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { 
   Users, 
   DollarSign, 
@@ -10,7 +12,9 @@ import {
   FileText, 
   Calendar,
   User,
-  CreditCard
+  CreditCard,
+  Eye,
+  X
 } from "lucide-react";
 import { apiService, StaffCommissionData } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
@@ -19,6 +23,10 @@ export function StaffPage() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [commissionData, setCommissionData] = useState<StaffCommissionData | null>(null);
   const [loading, setLoading] = useState(false);
+  const [selectedAttendant, setSelectedAttendant] = useState<string | null>(null);
+  const [attendantRecords, setAttendantRecords] = useState<any[]>([]);
+  const [showRecordsModal, setShowRecordsModal] = useState(false);
+  const [loadingRecords, setLoadingRecords] = useState(false);
   const { toast } = useToast();
 
   const loadCommissionData = async () => {
@@ -54,6 +62,13 @@ export function StaffPage() {
     return `KSh ${amount.toLocaleString()}`;
   };
 
+  const formatCurrencyMobile = (amount: number) => {
+    if (amount >= 1000) {
+      return `KSh ${(amount / 1000).toFixed(1)}K`;
+    }
+    return `KSh ${amount}`;
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       weekday: 'long',
@@ -63,215 +78,395 @@ export function StaffPage() {
     });
   };
 
+  const handleViewRecords = async (attendant: string) => {
+    setSelectedAttendant(attendant);
+    setShowRecordsModal(true);
+    setLoadingRecords(true);
+    setAttendantRecords([]);
+    
+    try {
+      // Create start and end of day for the selected date
+      const selectedDateObj = new Date(selectedDate);
+      const startOfDay = new Date(selectedDateObj.getFullYear(), selectedDateObj.getMonth(), selectedDateObj.getDate());
+      const endOfDay = new Date(selectedDateObj.getFullYear(), selectedDateObj.getMonth(), selectedDateObj.getDate(), 23, 59, 59, 999);
+      
+      console.log('Fetching records for:', {
+        attendant,
+        selectedDate,
+        startOfDay: startOfDay.toISOString(),
+        endOfDay: endOfDay.toISOString()
+      });
+      
+      // Load records for the specific attendant and date
+      const response = await apiService.getRecords({ 
+        startDate: startOfDay.toISOString(),
+        endDate: endOfDay.toISOString(),
+        attendant: attendant 
+      });
+      
+      console.log('API Response:', response);
+      
+      if (response.success && response.data) {
+        setAttendantRecords(response.data);
+        console.log('Records loaded:', response.data);
+      } else {
+        console.error('API Error:', response.message);
+        toast({
+          title: "Error",
+          description: response.message || "Failed to load attendant records",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error loading attendant records:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load attendant records",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingRecords(false);
+    }
+  };
+
+  // Test function to fetch all records for debugging
+  const testFetchAllRecords = async () => {
+    try {
+      console.log('Testing backend connection...');
+      
+      // Test the backend test endpoint first
+      const testResponse = await fetch('http://localhost:4000/records/test');
+      const testData = await testResponse.json();
+      console.log('Backend test response:', testData);
+      
+      if (testData.success) {
+        toast({
+          title: "Backend Test Complete",
+          description: `Backend is working! Found ${testData.data?.length || 0} records`,
+        });
+      } else {
+        throw new Error(testData.message);
+      }
+    } catch (error) {
+      console.error('Test error:', error);
+      toast({
+        title: "Backend Test Failed",
+        description: "Backend is not responding properly",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Create stats array like Dashboard
+  const stats = [
+    {
+      title: "Total Staff",
+      value: loading ? "" : (commissionData?.totalStaff || 0).toString(),
+      subtitle: "Active staff members",
+      icon: Users,
+      color: "text-blue-600",
+      bgColor: "bg-blue-50"
+    },
+    {
+      title: "Total Commission",
+      value: loading ? "" : formatCurrency(commissionData?.totalCommission || 0),
+      subtitle: `${commissionData?.commissionRate || 30}% of total revenue`,
+      icon: DollarSign,
+      color: "text-green-600",
+      bgColor: "bg-green-50"
+    },
+    {
+      title: "Total Services",
+      value: loading ? "" : (commissionData?.totalServices || 0).toString(),
+      subtitle: "Services completed",
+      icon: TrendingUp,
+      color: "text-purple-600",
+      bgColor: "bg-purple-50"
+    },
+    {
+      title: "Commission Rate",
+      value: loading ? "" : `${commissionData?.commissionRate || 30}%`,
+      subtitle: "Per service commission",
+      icon: FileText,
+      color: "text-orange-600",
+      bgColor: "bg-orange-50"
+    }
+  ];
+
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Staff Commission</h1>
-        <p className="text-sm text-muted-foreground">
-          Calculate and track commission for service staff
-        </p>
+    <div className="space-y-6">
+      {/* Stats Grid - Exact Dashboard Structure */}
+      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
+        {stats.map((stat, index) => (
+          <Card key={index} className="hover:shadow-lg transition-all duration-300">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-3 pt-3 md:px-6 md:pt-6">
+              <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">
+                {stat.title}
+              </CardTitle>
+              <div className={`p-1.5 md:p-2 rounded-lg ${stat.bgColor}`}>
+                <stat.icon className={`h-3 w-3 md:h-4 md:w-4 ${stat.color}`} />
+              </div>
+            </CardHeader>
+            <CardContent className="px-3 pb-3 md:px-6 md:pb-6">
+              <div className="text-lg md:text-2xl font-bold">
+                {loading ? (
+                  <div className="h-6 md:h-8 bg-gray-200 rounded animate-pulse"></div>
+                ) : (
+                  stat.value
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {loading ? (
+                  <div className="h-3 bg-gray-200 rounded animate-pulse"></div>
+                ) : (
+                  stat.subtitle
+                )}
+              </p>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
-      {/* Key Metrics Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Total Staff */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Staff</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl font-bold">
-              {commissionData?.totalStaff || 0}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Active staff members
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Total Commission */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Commission</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl font-bold text-green-600">
-              {formatCurrency(commissionData?.totalCommission || 0)}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {commissionData?.commissionRate || 30}% of total revenue
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Total Services */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Services</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl font-bold">
-              {commissionData?.totalServices || 0}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Services completed
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Commission Rate */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Commission Rate</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl font-bold text-blue-600">
-              {commissionData?.commissionRate || 30}%
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Per service commission
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Summary Stats */}
+      {/* Recent Commission Activity - Dashboard Style */}
       {commissionData && commissionData.staffBreakdown.length > 0 && (
         <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg">Daily Summary</CardTitle>
-            <CardDescription className="text-sm">
-              Overview of {formatDate(selectedDate)}
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Recent Commission Activity
+            </CardTitle>
+            <CardDescription>
+              Staff performance for {formatDate(selectedDate)}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="text-center p-4 bg-muted/50 rounded-lg">
-                <div className="text-xl font-bold text-primary">
-                  {formatCurrency(commissionData.totalRevenue)}
+            <div className="space-y-4">
+              {commissionData.staffBreakdown.slice(0, 5).map((staff) => (
+                <div key={staff.attendant} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-primary/10 rounded-full">
+                      <Users className="h-4 w-4 text-primary" />
+                    </div>
+                    <div>
+                      <p className="font-medium">{staff.attendant}</p>
+                      <p className="text-sm text-muted-foreground">{staff.services} services • {formatCurrency(staff.revenue)}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-semibold text-green-600">{formatCurrency(staff.commission)}</p>
+                    <p className="text-sm text-muted-foreground">{commissionData?.commissionRate || 30}% commission</p>
+                  </div>
                 </div>
-                <p className="text-sm text-muted-foreground">Total Revenue</p>
-              </div>
-              <div className="text-center p-4 bg-muted/50 rounded-lg">
-                <div className="text-xl font-bold text-green-600">
-                  {formatCurrency(commissionData.totalCommission)}
-                </div>
-                <p className="text-sm text-muted-foreground">Total Commission</p>
-              </div>
-              <div className="text-center p-4 bg-muted/50 rounded-lg">
-                <div className="text-xl font-bold text-blue-600">
-                  {formatCurrency(commissionData.totalRevenue - commissionData.totalCommission)}
-                </div>
-                <p className="text-sm text-muted-foreground">Net Revenue</p>
-              </div>
+              ))}
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Staff Commission Breakdown */}
+      {/* Detailed Analytics - Dashboard Style */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Commission Analysis */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Commission Analysis</CardTitle>
+            <CardDescription>
+              Revenue breakdown for {formatDate(selectedDate)}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {commissionData && (
+                <>
+                  <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
+                    <div>
+                      <p className="font-semibold text-green-800">Total Revenue</p>
+                      <p className="text-sm text-green-600">All services completed</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-green-800">{formatCurrency(commissionData.totalRevenue)}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
+                    <div>
+                      <p className="font-semibold text-blue-800">Total Commission</p>
+                      <p className="text-sm text-blue-600">{commissionData.commissionRate}% of revenue</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-blue-800">{formatCurrency(commissionData.totalCommission)}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between items-center p-3 bg-orange-50 rounded-lg">
+                    <div>
+                      <p className="font-semibold text-orange-800">Net Revenue</p>
+                      <p className="text-sm text-orange-600">After commission</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-orange-800">{formatCurrency(commissionData.totalRevenue - commissionData.totalCommission)}</p>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Staff Performance */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Staff Performance</CardTitle>
+            <CardDescription>
+              Individual staff commission for {formatDate(selectedDate)}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {commissionData && commissionData.staffBreakdown.length > 0 ? (
+                commissionData.staffBreakdown.map(staff => (
+                  <div key={staff.attendant} className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
+                    <div>
+                      <p className="font-medium">{staff.attendant}</p>
+                      <p className="text-sm text-muted-foreground">{staff.services} services</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-semibold text-green-600">{formatCurrency(staff.commission)}</p>
+                      <p className="text-sm text-muted-foreground">{formatCurrency(staff.revenue)} revenue</p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <h3 className="text-lg font-medium mb-2">No staff data available</h3>
+                  <p className="text-sm">No vehicles were washed on this date.</p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Date Selection */}
       <Card>
-        <CardHeader className="pb-3">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Users className="h-4 w-4" />
-                Staff Commission Breakdown
-              </CardTitle>
-              <CardDescription className="text-sm">
-                Individual staff performance and commission for {formatDate(selectedDate)}
-              </CardDescription>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="date"
-                  value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                  className="w-auto"
-                />
-              </div>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])}
-              >
-                Clear Filter
-              </Button>
-            </div>
-          </div>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Calendar className="h-5 w-5" />
+            Date Selection
+          </CardTitle>
+          <CardDescription>
+            Select a date to view commission data
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          {!commissionData || commissionData.staffBreakdown.length === 0 ? (
-            <div className="text-center py-6 text-muted-foreground">
-              <Users className="h-8 w-8 mx-auto mb-3 opacity-50" />
-              <h3 className="text-base font-medium mb-1">No staff commission data available</h3>
-              <p className="text-sm">Add some service records to see commission calculations.</p>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <Input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="w-auto"
+              />
             </div>
-          ) : (
-            <div className="space-y-4">
-              {commissionData.staffBreakdown.map((staff, index) => (
-                <Card key={staff.attendant} className="border-l-4 border-l-primary">
-                  <CardContent className="p-4">
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                      <div className="md:col-span-2">
-                        <div className="flex items-center gap-2 mb-1">
-                          <User className="h-4 w-4 text-primary" />
-                          <span className="font-semibold text-base">{staff.attendant}</span>
-                          <Badge variant="secondary" className="text-xs">#{index + 1}</Badge>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <TrendingUp className="h-3 w-3" />
-                          <span>{staff.services} services completed</span>
-                        </div>
-                      </div>
-                      
-                      <div className="text-center md:text-left">
-                        <div className="flex items-center gap-2 mb-1">
-                          <CreditCard className="h-4 w-4 text-success" />
-                          <span className="font-bold text-success text-sm">
-                            {formatCurrency(staff.revenue)}
-                          </span>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          Total Revenue
-                        </p>
-                      </div>
-                      
-                      <div className="text-center md:text-right">
-                        <div className="flex items-center gap-2 mb-1">
-                          <DollarSign className="h-4 w-4 text-green-600" />
-                          <span className="font-bold text-green-600 text-sm">
-                            {formatCurrency(staff.commission)}
-                          </span>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          Commission Earned
-                        </p>
-                      </div>
-                    </div>
-                    
-                    {/* Additional Stats */}
-                    <div className="mt-2 pt-2 border-t">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Average per Service:</span>
-                        <span className="font-medium">{formatCurrency(staff.averageService)}</span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])}
+            >
+              Today
+            </Button>
+          </div>
         </CardContent>
       </Card>
+
+      {/* Attendant Records Modal */}
+      <Dialog open={showRecordsModal} onOpenChange={setShowRecordsModal}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <User className="h-5 w-5" />
+              Records for {selectedAttendant}
+            </DialogTitle>
+            <DialogDescription>
+              Vehicle wash records for {formatDate(selectedDate)}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {loadingRecords ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading records...</p>
+                        </div>
+          ) : attendantRecords.length > 0 ? (
+            <div className="space-y-4">
+              <div className="border border-gray-300 rounded-lg overflow-hidden">
+                <table className="w-full border-collapse">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="border border-gray-300 px-4 py-3 text-left font-semibold">Registration</th>
+                      <th className="border border-gray-300 px-4 py-3 text-left font-semibold">Car Model</th>
+                      <th className="border border-gray-300 px-4 py-3 text-left font-semibold">Service</th>
+                      <th className="border border-gray-300 px-4 py-3 text-right font-semibold">Amount</th>
+                      <th className="border border-gray-300 px-4 py-3 text-center font-semibold">Payment</th>
+                      <th className="border border-gray-300 px-4 py-3 text-center font-semibold">Time</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {attendantRecords.map((record, index) => (
+                      <tr key={record.id || index} className="hover:bg-gray-50">
+                        <td className="border border-gray-300 px-4 py-3 font-medium">{record.registrationNumber}</td>
+                        <td className="border border-gray-300 px-4 py-3">{record.carModel}</td>
+                        <td className="border border-gray-300 px-4 py-3">{record.services}</td>
+                        <td className="border border-gray-300 px-4 py-3 text-right">{formatCurrency(record.amountPaid)}</td>
+                        <td className="border border-gray-300 px-4 py-3 text-center">
+                          <span className={`px-2 py-1 rounded text-xs font-medium ${
+                            record.paymentMethod === 'Mpesa' 
+                              ? 'bg-green-100 text-green-800' 
+                              : 'bg-blue-100 text-blue-800'
+                          }`}>
+                            {record.paymentMethod}
+                          </span>
+                        </td>
+                        <td className="border border-gray-300 px-4 py-3 text-center text-sm text-gray-600">
+                          {record.time || 'N/A'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                      </div>
+                      
+              {/* Summary */}
+              <div className="bg-gray-50 p-3 md:p-4 rounded-lg">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 text-center">
+                  <div>
+                    <p className="text-xs md:text-sm text-gray-600">Total Vehicles</p>
+                    <p className="text-base md:text-lg font-semibold">{attendantRecords.length}</p>
+                        </div>
+                  <div>
+                    <p className="text-xs md:text-sm text-gray-600">Total Revenue</p>
+                    <p className="text-base md:text-lg font-semibold text-green-600">
+                      {formatCurrency(attendantRecords.reduce((sum, r) => sum + r.amountPaid, 0))}
+                        </p>
+                      </div>
+                  <div className="col-span-2 md:col-span-1">
+                    <p className="text-xs md:text-sm text-gray-600">Commission</p>
+                    <p className="text-base md:text-lg font-semibold text-blue-600">
+                      {formatCurrency(attendantRecords.reduce((sum, r) => sum + r.amountPaid, 0) * (attendantRecords.reduce((sum, r) => sum + r.amountPaid, 0) < 5000 ? 0.20 : 0.30))}
+                        </p>
+                      </div>
+                    </div>
+                      </div>
+                    </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>No records found for this attendant on this date.</p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

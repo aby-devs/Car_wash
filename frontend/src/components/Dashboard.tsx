@@ -110,40 +110,20 @@ export function Dashboard({ records, dashboardStats, todayStats, weekStats, mont
 
   return (
     <div className="space-y-6">
-      {/* Hero Section */}
-      <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-primary to-primary-hover text-primary-foreground">
-        <div className="absolute inset-0 opacity-20">
-          <img 
-            src={heroImage} 
-            alt="Car wash facility" 
-            className="w-full h-full object-cover"
-          />
-        </div>
-        <div className="relative p-8 md:p-12">
-          <h1 className="text-3xl md:text-4xl font-bold mb-4">
-            Car Wash Management System
-          </h1>
-          <p className="text-lg opacity-90 max-w-2xl">
-            Professional car wash service management. Track services, manage payments, 
-            and monitor your business performance with ease.
-          </p>
-        </div>
-      </div>
-
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
         {stats.map((stat, index) => (
           <Card key={index} className="hover:shadow-lg transition-all duration-300">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-3 pt-3 md:px-6 md:pt-6">
+              <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">
                 {stat.title}
               </CardTitle>
-              <div className={`p-2 rounded-lg ${stat.bgColor}`}>
-                <stat.icon className={`h-4 w-4 ${stat.color}`} />
+              <div className={`p-1.5 md:p-2 rounded-lg ${stat.bgColor}`}>
+                <stat.icon className={`h-3 w-3 md:h-4 md:w-4 ${stat.color}`} />
               </div>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stat.value}</div>
+            <CardContent className="px-3 pb-3 md:px-6 md:pb-6">
+              <div className="text-lg md:text-2xl font-bold">{stat.value}</div>
                 <p className="text-xs text-muted-foreground mt-1">
                 {stat.subtitle}
                 </p>
@@ -251,34 +231,34 @@ export function Dashboard({ records, dashboardStats, todayStats, weekStats, mont
           <CardTitle>Business Summary</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-            <div className="p-4 bg-blue-50 rounded-lg">
-              <h4 className="font-semibold mb-2 text-blue-800">Today</h4>
-              <div className="space-y-1 text-sm">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 text-center">
+            <div className="p-3 md:p-4 bg-blue-50 rounded-lg">
+              <h4 className="font-semibold mb-1 md:mb-2 text-blue-800 text-sm md:text-base">Today</h4>
+              <div className="space-y-1 text-xs md:text-sm">
                 <p className="font-bold text-blue-900">{todayStats?.totalServices ?? todayRecords.length} services</p>
                 <p className="text-blue-600">KSh {(todayStats?.totalRevenue ?? todayRecords.reduce((sum, r) => sum + r.amountPaid, 0)).toLocaleString()}</p>
               </div>
             </div>
             
-            <div className="p-4 bg-purple-50 rounded-lg">
-              <h4 className="font-semibold mb-2 text-purple-800">This Week</h4>
-              <div className="space-y-1 text-sm">
+            <div className="p-3 md:p-4 bg-purple-50 rounded-lg">
+              <h4 className="font-semibold mb-1 md:mb-2 text-purple-800 text-sm md:text-base">This Week</h4>
+              <div className="space-y-1 text-xs md:text-sm">
                 <p className="font-bold text-purple-900">{weekStats?.totalServices ?? weekRecords.length} services</p>
                 <p className="text-purple-600">KSh {(weekStats?.totalRevenue ?? weekRecords.reduce((sum, r) => sum + r.amountPaid, 0)).toLocaleString()}</p>
               </div>
             </div>
             
-            <div className="p-4 bg-green-50 rounded-lg">
-              <h4 className="font-semibold mb-2 text-green-800">This Month</h4>
-              <div className="space-y-1 text-sm">
+            <div className="p-3 md:p-4 bg-green-50 rounded-lg">
+              <h4 className="font-semibold mb-1 md:mb-2 text-green-800 text-sm md:text-base">This Month</h4>
+              <div className="space-y-1 text-xs md:text-sm">
                 <p className="font-bold text-green-900">{monthStats?.totalServices ?? monthRecords.length} services</p>
                 <p className="text-green-600">KSh {(monthStats?.totalRevenue ?? monthRecords.reduce((sum, r) => sum + r.amountPaid, 0)).toLocaleString()}</p>
               </div>
             </div>
             
-            <div className="p-4 bg-orange-50 rounded-lg">
-              <h4 className="font-semibold mb-2 text-orange-800">Average</h4>
-              <div className="space-y-1 text-sm">
+            <div className="p-3 md:p-4 bg-orange-50 rounded-lg">
+              <h4 className="font-semibold mb-1 md:mb-2 text-orange-800 text-sm md:text-base">Average</h4>
+              <div className="space-y-1 text-xs md:text-sm">
                 <p className="font-bold text-orange-900">KSh {averageService.toFixed(0)}</p>
                 <p className="text-orange-600">per service</p>
               </div>
