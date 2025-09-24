@@ -61,7 +61,7 @@ export function AddRecordPage() {
   };
 
   return (
-    <div className="container mx-auto p-3 sm:p-4 md:p-6">
+    <div className="w-full min-h-screen p-4 sm:p-6 md:p-8 lg:p-10">
       <ServiceManagement records={records} onAddRecord={handleAddRecord} />
     </div>
   );

@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Car, CreditCard, User, Search, Filter, Edit, Trash2, X } from "lucide-react";
+import { Plus, Car, CreditCard, User, Search, Filter, Edit, Trash2, X, DollarSign } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export interface CarWashRecord {
@@ -244,7 +244,20 @@ export function ServiceManagement({ records, onAddRecord }: ServiceManagementPro
     return `${day}/${month}/${year}`;
   };
 
-  const filteredRecords = records.filter(record => {
+  // Sort records with latest added at the top
+  const sortedRecords = [...records].sort((a, b) => {
+    // First try to sort by createdAt if available
+    if (a.createdAt && b.createdAt) {
+      if (a.createdAt.toDate && b.createdAt.toDate) {
+        return b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime();
+      }
+      return b.createdAt - a.createdAt;
+    }
+    // Fallback to date field
+    return new Date(b.date).getTime() - new Date(a.date).getTime();
+  });
+
+  const filteredRecords = sortedRecords.filter(record => {
     const matchesSearch = record.registrationNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          record.attendant.toLowerCase().includes(searchTerm.toLowerCase());
     
@@ -265,6 +278,14 @@ export function ServiceManagement({ records, onAddRecord }: ServiceManagementPro
     return matchesSearch && matchesDate && matchesPayment;
   });
 
+  // Calculate summary statistics
+  const totalRevenue = filteredRecords.reduce((sum, record) => sum + record.amountPaid, 0);
+  const totalServices = filteredRecords.length;
+  const mpesaCount = filteredRecords.filter(r => r.paymentMethod === 'Mpesa').length;
+  const cashCount = filteredRecords.filter(r => r.paymentMethod === 'Cash').length;
+  const mpesaRevenue = filteredRecords.filter(r => r.paymentMethod === 'Mpesa').reduce((sum, record) => sum + record.amountPaid, 0);
+  const cashRevenue = filteredRecords.filter(r => r.paymentMethod === 'Cash').reduce((sum, record) => sum + record.amountPaid, 0);
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Completed': return 'bg-green-100 text-green-800 border-green-200';
@@ -275,46 +296,123 @@ export function ServiceManagement({ records, onAddRecord }: ServiceManagementPro
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full">
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Service Management</h1>
-          <p className="text-sm sm:text-base text-gray-600">Manage car wash services, track revenue, and monitor transactions</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Service Management</h1>
+          <p className="text-base text-gray-600">Manage car wash services, track revenue, and monitor transactions</p>
         </div>
         <Button 
           onClick={() => setShowForm(true)} 
-          size="sm"
-          className="bg-blue-600 hover:bg-blue-700 text-white h-8 px-3 text-xs self-start"
+          size="default"
+          className="bg-blue-600 hover:bg-blue-700 text-white h-10 px-4 text-sm font-semibold self-start"
         >
-          <Plus className="mr-1 h-3 w-3" />
+          <Plus className="mr-2 h-4 w-4" />
           Add New Record
         </Button>
       </div>
 
-      {/* Search and Filter Section */}
-      <Card>
-        <CardContent className="p-4 sm:p-6">
-          <div className="flex flex-col gap-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input
-                placeholder="Search by registration number or attendant name..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
+      {/* Summary Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card className="hover:shadow-lg transition-all duration-300">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Total Services
+            </CardTitle>
+            <div className="p-2 rounded-lg bg-blue-50">
+              <Car className="h-4 w-4 text-blue-600" />
             </div>
+          </CardHeader>
+          <CardContent className="px-4 pb-4">
+            <div className="text-2xl font-bold text-blue-600">{totalServices}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {filteredRecords.length} filtered
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="hover:shadow-lg transition-all duration-300">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Total Revenue
+            </CardTitle>
+            <div className="p-2 rounded-lg bg-green-50">
+              <DollarSign className="h-4 w-4 text-green-600" />
+            </div>
+          </CardHeader>
+          <CardContent className="px-4 pb-4">
+            <div className="text-2xl font-bold text-green-600">KSh {totalRevenue.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {totalServices > 0 ? `Avg: KSh ${Math.round(totalRevenue / totalServices).toLocaleString()}` : 'No services'}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="hover:shadow-lg transition-all duration-300">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              M-Pesa
+            </CardTitle>
+            <div className="p-2 rounded-lg bg-green-50">
+              <CreditCard className="h-4 w-4 text-green-600" />
+            </div>
+          </CardHeader>
+          <CardContent className="px-4 pb-4">
+            <div className="text-2xl font-bold text-green-600">{mpesaCount}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              KSh {mpesaRevenue.toLocaleString()}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="hover:shadow-lg transition-all duration-300">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Cash
+            </CardTitle>
+            <div className="p-2 rounded-lg bg-blue-50">
+              <DollarSign className="h-4 w-4 text-blue-600" />
+            </div>
+          </CardHeader>
+          <CardContent className="px-4 pb-4">
+            <div className="text-2xl font-bold text-blue-600">{cashCount}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              KSh {cashRevenue.toLocaleString()}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Services Table */}
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <CardTitle className="text-xl font-bold text-gray-900">Service Orders</CardTitle>
+              <CardDescription className="text-sm text-gray-600">View and manage all car wash service transactions</CardDescription>
+            </div>
+            
+            {/* Filters inside table header */}
             <div className="flex flex-col sm:flex-row gap-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Input
+                  placeholder="Search..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 w-full sm:w-48 h-9 text-sm"
+                />
+              </div>
               <Input
                 type="date"
                 value={dateFilter}
                 onChange={(e) => setDateFilter(e.target.value)}
-                className="w-full sm:w-40"
+                className="w-full sm:w-40 h-9 text-sm"
                 placeholder="Filter by date"
               />
               <Select value={paymentFilter} onValueChange={setPaymentFilter}>
-                <SelectTrigger className="w-full sm:w-40">
+                <SelectTrigger className="w-full sm:w-40 h-9 text-sm">
                   <Filter className="mr-2 h-4 w-4" />
                   <SelectValue />
                 </SelectTrigger>
@@ -332,23 +430,15 @@ export function ServiceManagement({ records, onAddRecord }: ServiceManagementPro
                   setDateFilter('');
                   setPaymentFilter('All Payment');
                 }}
-                className="w-full sm:w-auto"
+                className="w-full sm:w-auto h-9 text-sm"
               >
                 <X className="mr-2 h-4 w-4" />
-                Clear Filters
+                Clear
               </Button>
             </div>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Services Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Service Orders</CardTitle>
-          <CardDescription>View and manage all car wash service transactions</CardDescription>
         </CardHeader>
-        <CardContent className="p-0 sm:p-6">
+        <CardContent className="p-0">
           {/* Mobile Card View */}
           <div className="block sm:hidden">
             {filteredRecords.length === 0 ? (
@@ -358,7 +448,7 @@ export function ServiceManagement({ records, onAddRecord }: ServiceManagementPro
             ) : (
               <div className="space-y-3 p-4">
                 {filteredRecords.map((record) => (
-                  <div key={record.id} className="border rounded-lg p-4 space-y-2">
+                  <div key={record.id} className="border rounded-lg p-4 space-y-2 hover:shadow-md transition-shadow">
                     <div className="flex justify-between items-start">
                       <div className="font-medium text-sm">{record.registrationNumber}</div>
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -392,63 +482,90 @@ export function ServiceManagement({ records, onAddRecord }: ServiceManagementPro
 
           {/* Desktop Table View */}
           <div className="hidden sm:block">
-            <div className="border border-gray-300 rounded-lg overflow-hidden">
-              <table className="w-full border-collapse">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="border border-gray-300 px-4 py-3 text-left font-semibold">Date</th>
-                    <th className="border border-gray-300 px-4 py-3 text-left font-semibold">Registration Number</th>
-                    <th className="border border-gray-300 px-4 py-3 text-left font-semibold">Model</th>
-                    <th className="border border-gray-300 px-4 py-3 text-left font-semibold">Vehicle Type</th>
-                    <th className="border border-gray-300 px-4 py-3 text-left font-semibold">Services</th>
-                    <th className="border border-gray-300 px-4 py-3 text-right font-semibold">Amount (KSh)</th>
-                    <th className="border border-gray-300 px-4 py-3 text-center font-semibold">Payment Method</th>
-                    <th className="border border-gray-300 px-4 py-3 text-center font-semibold">M-Pesa Code</th>
-                    <th className="border border-gray-300 px-4 py-3 text-left font-semibold">Attendant</th>
-                  </tr>
-                </thead>
-                <tbody>
+            <div className="border rounded-lg overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/50">
+                    <TableHead className="font-semibold py-4 px-4">Date</TableHead>
+                    <TableHead className="font-semibold py-4 px-4">Registration</TableHead>
+                    <TableHead className="font-semibold py-4 px-4">Model</TableHead>
+                    <TableHead className="font-semibold py-4 px-4">Vehicle Type</TableHead>
+                    <TableHead className="font-semibold py-4 px-4">Service</TableHead>
+                    <TableHead className="font-semibold py-4 px-4 text-right">Amount</TableHead>
+                    <TableHead className="font-semibold py-4 px-4 text-center">Payment</TableHead>
+                    <TableHead className="font-semibold py-4 px-4 text-center">M-Pesa Code</TableHead>
+                    <TableHead className="font-semibold py-4 px-4">Attendant</TableHead>
+                    <TableHead className="font-semibold py-4 px-4 text-center">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {filteredRecords.length === 0 ? (
-                    <tr>
-                      <td colSpan={9} className="border border-gray-300 px-4 py-8 text-center text-gray-500">
-                        No service records found. Click "Add New Record" to add your first record.
-                      </td>
-                    </tr>
+                    <TableRow>
+                      <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                        <div className="text-lg font-semibold mb-2">No service records found</div>
+                        <div className="text-sm">Click "Add New Record" to add your first record.</div>
+                      </TableCell>
+                    </TableRow>
                   ) : (
                     filteredRecords.map((record) => (
-                      <tr key={record.id} className="hover:bg-gray-50">
-                        <td className="border border-gray-300 px-4 py-3 font-medium">{formatDate(record.date)}</td>
-                        <td className="border border-gray-300 px-4 py-3">{record.registrationNumber}</td>
-                        <td className="border border-gray-300 px-4 py-3">{record.carModel}</td>
-                        <td className="border border-gray-300 px-4 py-3">
-                          {record.vehicleType || (record.services && record.services.includes(' - ') ? record.services.split(' - ')[0] : '-')}
-                        </td>
-                        <td className="border border-gray-300 px-4 py-3 max-w-xs truncate">
-                          {record.serviceOffered || (record.services && record.services.includes(' - ') ? record.services.split(' - ')[1] : record.services)}
-                        </td>
-                        <td className="border border-gray-300 px-4 py-3 text-right">KSh {record.amountPaid.toLocaleString()}</td>
-                        <td className="border border-gray-300 px-4 py-3 text-center">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            record.paymentMethod === 'Mpesa' 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-blue-100 text-blue-800'
-                          }`}>
+                      <TableRow key={record.id} className="hover:bg-muted/50">
+                        <TableCell className="font-medium py-4 px-4">{formatDate(record.date)}</TableCell>
+                        <TableCell className="font-medium py-4 px-4">{record.registrationNumber}</TableCell>
+                        <TableCell className="py-4 px-4">{record.carModel}</TableCell>
+                        <TableCell className="py-4 px-4">
+                          <Badge variant="outline" className="text-xs">
+                            {record.vehicleType || (record.services && record.services.includes(' - ') ? record.services.split(' - ')[0] : '-')}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="max-w-xs py-4 px-4">
+                          <div className="truncate" title={record.serviceOffered || (record.services && record.services.includes(' - ') ? record.services.split(' - ')[1] : record.services)}>
+                            {record.serviceOffered || (record.services && record.services.includes(' - ') ? record.services.split(' - ')[1] : record.services)}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right font-semibold text-green-600 py-4 px-4">
+                          KSh {record.amountPaid.toLocaleString()}
+                        </TableCell>
+                        <TableCell className="text-center py-4 px-4">
+                          <Badge 
+                            variant={record.paymentMethod === 'Mpesa' ? 'default' : 'secondary'}
+                            className={`text-xs ${record.paymentMethod === 'Mpesa' ? 'bg-green-100 text-green-800 hover:bg-green-100' : 'bg-blue-100 text-blue-800 hover:bg-blue-100'}`}
+                          >
                             {record.paymentMethod === 'Mpesa' ? 'M-Pesa' : 'Cash'}
-                          </span>
-                        </td>
-                        <td className="border border-gray-300 px-4 py-3 text-center">
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-center py-4 px-4">
                           {record.paymentMethod === 'Mpesa' && record.mpesaCode ? (
-                            <span className="font-mono text-sm">{record.mpesaCode}</span>
+                            <span className="font-mono text-sm bg-muted px-2 py-1 rounded">{record.mpesaCode}</span>
                           ) : (
-                            <span className="text-gray-400">-</span>
+                            <span className="text-muted-foreground">-</span>
                           )}
-                        </td>
-                        <td className="border border-gray-300 px-4 py-3">{record.attendant}</td>
-                      </tr>
+                        </TableCell>
+                        <TableCell className="py-4 px-4">{record.attendant}</TableCell>
+                        <TableCell className="text-center py-4 px-4">
+                          <div className="flex justify-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleEditRecord(record)}
+                              className="h-8 w-8 p-0 hover:bg-blue-50 hover:text-blue-600"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDeleteRecord(record.id)}
+                              className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
                     ))
                   )}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           </div>
         </CardContent>
@@ -456,31 +573,31 @@ export function ServiceManagement({ records, onAddRecord }: ServiceManagementPro
 
       {/* Add Service Form Modal */}
       {showForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <Card className="w-full max-w-xs sm:max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto mx-2 sm:mx-4">
-            <CardHeader className="relative border-b px-3 pt-3 pb-3 sm:px-6 sm:pt-6 sm:pb-6">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-4xl max-h-[95vh] overflow-y-auto shadow-2xl border-4">
+            <CardHeader className="relative border-b-2 bg-gradient-to-r from-blue-50 to-blue-100 px-8 pt-8 pb-6">
               <Button
                 type="button"
                 variant="ghost"
-                size="sm"
+                size="lg"
                 onClick={() => setShowForm(false)}
-                className="absolute top-2 right-2 sm:top-4 sm:right-4 text-gray-500 hover:bg-gray-100 h-6 w-6 sm:h-8 sm:w-8"
+                className="absolute top-4 right-4 text-gray-500 hover:bg-gray-100 h-10 w-10 rounded-full"
               >
-                <X className="h-3 w-3 sm:h-4 sm:w-4" />
+                <X className="h-6 w-6" />
               </Button>
-              <CardTitle className="flex items-center gap-2 text-gray-900 text-sm sm:text-base">
-                <Plus className="h-4 w-4 sm:h-5 sm:w-5" />
+              <CardTitle className="flex items-center gap-3 text-gray-900 text-2xl md:text-3xl font-bold">
+                <Plus className="h-8 w-8" />
                 Add New Car Wash Service
               </CardTitle>
-              <CardDescription className="text-gray-600 text-xs sm:text-sm">
+              <CardDescription className="text-gray-600 text-lg mt-2">
                 Record details of the car wash service provided
               </CardDescription>
             </CardHeader>
-            <CardContent className="p-3 sm:p-6">
-              <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-6">
-                <div className="grid grid-cols-2 sm:grid-cols-2 gap-3 sm:gap-6">
-                  <div className="space-y-1 sm:space-y-2">
-                    <Label htmlFor="registrationNumber" className="text-xs sm:text-sm font-medium">
+            <CardContent className="p-8">
+              <form onSubmit={handleSubmit} className="space-y-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-3">
+                    <Label htmlFor="registrationNumber" className="text-lg font-semibold text-gray-700">
                       Registration Number
                     </Label>
                     <Input
@@ -488,12 +605,12 @@ export function ServiceManagement({ records, onAddRecord }: ServiceManagementPro
                       placeholder="e.g., KCA 123A"
                       value={formData.registrationNumber}
                       onChange={(e) => handleInputChange('registrationNumber', e.target.value)}
-                      className="h-8 sm:h-10 text-sm"
+                      className="h-14 text-lg border-2 focus:border-blue-500 rounded-xl"
                     />
                   </div>
 
-                  <div className="space-y-1 sm:space-y-2">
-                    <Label htmlFor="carModel" className="text-xs sm:text-sm font-medium">
+                  <div className="space-y-3">
+                    <Label htmlFor="carModel" className="text-lg font-semibold text-gray-700">
                       Car Model
                     </Label>
                     <Input
@@ -501,19 +618,19 @@ export function ServiceManagement({ records, onAddRecord }: ServiceManagementPro
                       placeholder="e.g., Toyota Camry"
                       value={formData.carModel}
                       onChange={(e) => handleInputChange('carModel', e.target.value)}
-                      className="h-8 sm:h-10 text-sm"
+                      className="h-14 text-lg border-2 focus:border-blue-500 rounded-xl"
                     />
                   </div>
 
-                  <div className="space-y-1 sm:space-y-2">
-                    <Label htmlFor="vehicleType" className="text-xs sm:text-sm font-medium">
+                  <div className="space-y-3">
+                    <Label htmlFor="vehicleType" className="text-lg font-semibold text-gray-700">
                       Vehicle Type
                     </Label>
                     <Select
                       value={formData.vehicleType}
                       onValueChange={(value) => handleInputChange('vehicleType', value)}
                     >
-                      <SelectTrigger className="h-8 sm:h-10 text-sm">
+                      <SelectTrigger className="h-14 text-lg border-2 focus:border-blue-500 rounded-xl">
                         <SelectValue placeholder="Select vehicle type" />
                       </SelectTrigger>
                       <SelectContent>
@@ -527,15 +644,15 @@ export function ServiceManagement({ records, onAddRecord }: ServiceManagementPro
                     </Select>
                   </div>
 
-                  <div className="space-y-1 sm:space-y-2">
-                    <Label htmlFor="serviceOffered" className="text-xs sm:text-sm font-medium">
+                  <div className="space-y-3">
+                    <Label htmlFor="serviceOffered" className="text-lg font-semibold text-gray-700">
                       Service Offered
                     </Label>
                     <Select
                       value={formData.serviceOffered}
                       onValueChange={(value) => handleInputChange('serviceOffered', value)}
                     >
-                      <SelectTrigger className="h-8 sm:h-10 text-sm">
+                      <SelectTrigger className="h-14 text-lg border-2 focus:border-blue-500 rounded-xl">
                         <SelectValue placeholder="Select service" />
                       </SelectTrigger>
                       <SelectContent>
@@ -556,8 +673,8 @@ export function ServiceManagement({ records, onAddRecord }: ServiceManagementPro
                     </Select>
                   </div>
 
-                  <div className="space-y-1 sm:space-y-2">
-                    <Label htmlFor="amountPaid" className="text-xs sm:text-sm font-medium">
+                  <div className="space-y-3">
+                    <Label htmlFor="amountPaid" className="text-lg font-semibold text-gray-700">
                       Amount Paid (KSh) - Auto-calculated
                     </Label>
                     <Input
@@ -572,22 +689,22 @@ export function ServiceManagement({ records, onAddRecord }: ServiceManagementPro
                         const value = e.target.value.replace(/[^0-9.]/g, '');
                         handleInputChange('amountPaid', value);
                       }}
-                      className="h-8 sm:h-10 bg-gray-50 text-sm [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                      className="h-14 bg-gray-50 text-lg border-2 focus:border-blue-500 rounded-xl [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                       readOnly={formData.vehicleType && formData.serviceOffered}
                     />
                     {formData.vehicleType && formData.serviceOffered && (
-                      <p className="text-xs text-gray-500">
+                      <p className="text-sm text-gray-500">
                         Price automatically calculated. You can edit if needed.
                       </p>
                     )}
                   </div>
 
-                  <div className="space-y-1 sm:space-y-2">
-                    <Label htmlFor="paymentMethod" className="text-xs sm:text-sm font-medium">
+                  <div className="space-y-3">
+                    <Label htmlFor="paymentMethod" className="text-lg font-semibold text-gray-700">
                       Payment Method
                     </Label>
                     <Select value={formData.paymentMethod} onValueChange={(value) => handleInputChange('paymentMethod', value)}>
-                      <SelectTrigger className="h-8 sm:h-10 text-sm">
+                      <SelectTrigger className="h-14 text-lg border-2 focus:border-blue-500 rounded-xl">
                         <SelectValue placeholder="Select payment method" />
                       </SelectTrigger>
                       <SelectContent>
@@ -597,15 +714,15 @@ export function ServiceManagement({ records, onAddRecord }: ServiceManagementPro
                     </Select>
                   </div>
 
-                  <div className="space-y-1 sm:space-y-2">
-                    <Label htmlFor="attendant" className="text-xs sm:text-sm font-medium">
+                  <div className="space-y-3">
+                    <Label htmlFor="attendant" className="text-lg font-semibold text-gray-700">
                       Attendant
                     </Label>
                     <Select
                       value={formData.attendant}
                       onValueChange={(value) => handleInputChange('attendant', value)}
                     >
-                      <SelectTrigger className="h-8 sm:h-10 text-sm">
+                      <SelectTrigger className="h-14 text-lg border-2 focus:border-blue-500 rounded-xl">
                         <SelectValue placeholder="Select attendant" />
                       </SelectTrigger>
                       <SelectContent>
@@ -627,8 +744,8 @@ export function ServiceManagement({ records, onAddRecord }: ServiceManagementPro
                   </div>
 
                   {formData.paymentMethod === 'Mpesa' && (
-                    <div className="space-y-1 sm:space-y-2">
-                      <Label htmlFor="mpesaCode" className="text-xs sm:text-sm font-medium">
+                    <div className="space-y-3">
+                      <Label htmlFor="mpesaCode" className="text-lg font-semibold text-gray-700">
                         M-Pesa Code
                       </Label>
                       <Input
@@ -636,21 +753,19 @@ export function ServiceManagement({ records, onAddRecord }: ServiceManagementPro
                         placeholder="Enter M-Pesa transaction code"
                         value={formData.mpesaCode}
                         onChange={(e) => handleInputChange('mpesaCode', e.target.value)}
-                        className="h-8 sm:h-10 text-sm"
+                        className="h-14 text-lg border-2 focus:border-blue-500 rounded-xl"
                       />
                     </div>
                   )}
                 </div>
 
-
-
-                <div className="flex justify-end">
+                <div className="flex justify-center pt-6">
                   <Button 
                     type="submit" 
-                    size="sm"
-                    className="bg-primary hover:bg-primary/90 h-8 sm:h-9 px-3 sm:px-4 text-xs sm:text-sm"
+                    size="lg"
+                    className="bg-blue-600 hover:bg-blue-700 text-white h-16 px-12 text-xl font-bold shadow-xl hover:shadow-2xl transition-all duration-300 rounded-xl"
                   >
-                    <Plus className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                    <Plus className="mr-3 h-6 w-6" />
                     Add Service
                   </Button>
                 </div>
