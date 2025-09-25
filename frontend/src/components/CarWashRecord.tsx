@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Plus, Car, CreditCard, User, Search, Filter, Edit, Trash2, X, DollarSign } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { apiService } from "@/services/api";
 
 export interface CarWashRecord {
   id: string;
@@ -67,6 +68,7 @@ export function ServiceManagement({ records, onAddRecord }: ServiceManagementPro
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState('');
   const [paymentFilter, setPaymentFilter] = useState('All Payment');
+  const [editingRecord, setEditingRecord] = useState<CarWashRecord | null>(null);
 
   const [formData, setFormData] = useState({
     registrationNumber: '',
@@ -76,7 +78,8 @@ export function ServiceManagement({ records, onAddRecord }: ServiceManagementPro
     amountPaid: '',
     paymentMethod: '' as 'Cash' | 'Mpesa' | '',
     attendant: '',
-    mpesaCode: ''
+    mpesaCode: '',
+    date: new Date().toISOString().split('T')[0]
   });
 
   // Pricing configuration based on the price list
@@ -170,7 +173,7 @@ export function ServiceManagement({ records, onAddRecord }: ServiceManagementPro
     e.preventDefault();
     
     if (!formData.registrationNumber || !formData.carModel || !formData.vehicleType || 
-        !formData.serviceOffered || !formData.amountPaid || !formData.paymentMethod || !formData.attendant) {
+        !formData.serviceOffered || !formData.amountPaid || !formData.paymentMethod || !formData.attendant || !formData.date) {
       toast({
         title: "Missing Information",
         description: "Please fill in all required fields.",
@@ -188,7 +191,7 @@ export function ServiceManagement({ records, onAddRecord }: ServiceManagementPro
       return;
     }
 
-    const record: Omit<CarWashRecord, 'id' | 'date' | 'time' | 'status' | 'createdAt' | 'updatedAt'> = {
+    const record: Omit<CarWashRecord, 'id' | 'time' | 'status' | 'createdAt' | 'updatedAt'> = {
       registrationNumber: formData.registrationNumber,
       carModel: formData.carModel,
       services: `${formData.vehicleType} - ${formData.serviceOffered}`,
@@ -197,23 +200,54 @@ export function ServiceManagement({ records, onAddRecord }: ServiceManagementPro
       amountPaid: parseFloat(formData.amountPaid),
       paymentMethod: formData.paymentMethod as 'Cash' | 'Mpesa',
       attendant: formData.attendant,
+      date: formData.date || new Date().toISOString().split('T')[0], // Ensure date is always valid
       ...(formData.paymentMethod === 'Mpesa' && formData.mpesaCode && { mpesaCode: formData.mpesaCode })
     };
 
-    await onAddRecord(record);
+    if (editingRecord) {
+      // Handle edit logic
+      try {
+        console.log('Attempting to update record with ID:', editingRecord.id);
+        console.log('Update data:', record);
+        
+        const response = await apiService.updateRecord(editingRecord.id, record);
+        console.log('Update response:', response);
+        
+        if (response.success) {
+          toast({
+            title: "Record Updated",
+            description: "The service record has been updated successfully.",
+          });
+          window.location.reload(); // Simple refresh for now
+        } else {
+          console.error('Update failed with response:', response);
+          throw new Error(response.message || 'Failed to update record');
+        }
+      } catch (error) {
+        console.error('Error updating record:', error);
+        console.error('Full error object:', error);
+        
+        // Check if it's a network error
+        if (error instanceof TypeError && error.message.includes('fetch')) {
+          toast({
+            title: "Network Error",
+            description: "Unable to connect to the server. Please check your internet connection and try again.",
+            variant: "destructive"
+          });
+        } else {
+          toast({
+            title: "Error Updating Record",
+            description: error instanceof Error ? error.message : 'Failed to update record',
+            variant: "destructive"
+          });
+        }
+        return; // Don't close the form if there's an error
+      }
+    } else {
+      await onAddRecord(record);
+    }
     
-    // Reset form
-    setFormData({
-      registrationNumber: '',
-      carModel: '',
-      vehicleType: '' as 'Saloon' | 'Saloon Detailed' | 'Saloon Simple' | '4x4/SUV' | '4x4/SUV Simple' | '4x4/SUV Detailed' | '',
-      serviceOffered: '',
-      amountPaid: '',
-      paymentMethod: '' as 'Cash' | 'Mpesa' | '',
-      attendant: '',
-      mpesaCode: ''
-    });
-
+    resetForm();
     setShowForm(false);
   };
 
@@ -236,12 +270,122 @@ export function ServiceManagement({ records, onAddRecord }: ServiceManagementPro
     });
   };
 
+  const handleEditRecord = (record: CarWashRecord) => {
+    setEditingRecord(record);
+    
+    // Convert date to YYYY-MM-DD format for the date input
+    let dateValue = record.date;
+    try {
+      if (record.date && !record.date.includes('-')) {
+        // If date is in DD/MM/YYYY format, convert to YYYY-MM-DD
+        const date = new Date(record.date);
+        if (!isNaN(date.getTime())) {
+          dateValue = date.toISOString().split('T')[0];
+        }
+      }
+    } catch (error) {
+      console.error('Date conversion error:', error);
+    }
+    
+    setFormData({
+      registrationNumber: record.registrationNumber,
+      carModel: record.carModel,
+      vehicleType: (record.vehicleType || '') as 'Saloon' | 'Saloon Detailed' | 'Saloon Simple' | '4x4/SUV' | '4x4/SUV Simple' | '4x4/SUV Detailed' | '',
+      serviceOffered: record.serviceOffered || '',
+      amountPaid: record.amountPaid.toString(),
+      paymentMethod: record.paymentMethod,
+      attendant: record.attendant,
+      mpesaCode: record.mpesaCode || '',
+      date: dateValue || new Date().toISOString().split('T')[0]
+    });
+    setShowForm(true);
+  };
+
+  const handleDeleteRecord = async (recordId: string) => {
+    if (window.confirm('Are you sure you want to delete this record?')) {
+      try {
+        console.log('Attempting to delete record with ID:', recordId);
+        console.log('Delete URL will be:', `http://localhost:4000/records/${recordId}`);
+        
+        const response = await apiService.deleteRecord(recordId);
+        console.log('Delete response:', response);
+        
+        if (response.success) {
+          toast({
+            title: "Record Deleted",
+            description: "The service record has been deleted successfully.",
+          });
+          // Refresh the records list by calling the parent's onRefresh if available
+          // or we could emit an event to refresh the data
+          window.location.reload(); // Simple refresh for now
+        } else {
+          console.error('Delete failed with response:', response);
+          throw new Error(response.message || 'Failed to delete record');
+        }
+      } catch (error) {
+        console.error('Error deleting record:', error);
+        console.error('Record ID that failed:', recordId);
+        console.error('Full error object:', error);
+        
+        // Check if it's a network error
+        if (error instanceof TypeError && error.message.includes('fetch')) {
+          toast({
+            title: "Network Error",
+            description: "Unable to connect to the server. Please check your internet connection and try again.",
+            variant: "destructive"
+          });
+        } else {
+          toast({
+            title: "Error Deleting Record",
+            description: `Failed to delete record: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            variant: "destructive"
+          });
+        }
+      }
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      registrationNumber: '',
+      carModel: '',
+      vehicleType: '' as 'Saloon' | 'Saloon Detailed' | 'Saloon Simple' | '4x4/SUV' | '4x4/SUV Simple' | '4x4/SUV Detailed' | '',
+      serviceOffered: '',
+      amountPaid: '',
+      paymentMethod: '' as 'Cash' | 'Mpesa' | '',
+      attendant: '',
+      mpesaCode: '',
+      date: new Date().toISOString().split('T')[0]
+    });
+    setEditingRecord(null);
+  };
+
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const day = date.getDate().toString().padStart(2, '0');
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const year = date.getFullYear();
-    return `${day}/${month}/${year}`;
+    try {
+      // Handle different date formats
+      let date;
+      if (dateString.includes('/')) {
+        // Handle DD/MM/YYYY or MM/DD/YYYY format
+        const parts = dateString.split('/');
+        date = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+      } else {
+        // Handle YYYY-MM-DD format (from date input)
+        date = new Date(dateString);
+      }
+      
+      // Check if date is valid
+      if (isNaN(date.getTime())) {
+        return dateString; // Return original string if invalid
+      }
+      
+      const day = date.getDate().toString().padStart(2, '0');
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const year = date.getFullYear();
+      return `${day}/${month}/${year}`;
+    } catch (error) {
+      console.error('Date formatting error:', error);
+      return dateString; // Return original string if error
+    }
   };
 
   // Sort records with latest added at the top
@@ -253,8 +397,22 @@ export function ServiceManagement({ records, onAddRecord }: ServiceManagementPro
       }
       return b.createdAt - a.createdAt;
     }
-    // Fallback to date field
-    return new Date(b.date).getTime() - new Date(a.date).getTime();
+    // Fallback to date field - handle different date formats
+    try {
+      const dateA = new Date(a.date);
+      const dateB = new Date(b.date);
+      
+      // Check if dates are valid
+      if (isNaN(dateA.getTime()) || isNaN(dateB.getTime())) {
+        // If dates are invalid, sort by string comparison
+        return b.date.localeCompare(a.date);
+      }
+      
+      return dateB.getTime() - dateA.getTime();
+    } catch (error) {
+      console.error('Date sorting error:', error);
+      return 0; // Keep original order if sorting fails
+    }
   });
 
   const filteredRecords = sortedRecords.filter(record => {
@@ -267,7 +425,14 @@ export function ServiceManagement({ records, onAddRecord }: ServiceManagementPro
       try {
         const recordDate = new Date(record.date);
         const filterDate = new Date(dateFilter);
-        matchesDate = recordDate.toDateString() === filterDate.toDateString();
+        
+        // Check if dates are valid
+        if (!isNaN(recordDate.getTime()) && !isNaN(filterDate.getTime())) {
+          matchesDate = recordDate.toDateString() === filterDate.toDateString();
+        } else {
+          // If date parsing fails, don't filter by date
+          matchesDate = true;
+        }
       } catch (error) {
         // If date parsing fails, don't filter by date
         matchesDate = true;
@@ -278,13 +443,41 @@ export function ServiceManagement({ records, onAddRecord }: ServiceManagementPro
     return matchesSearch && matchesDate && matchesPayment;
   });
 
-  // Calculate summary statistics
-  const totalRevenue = filteredRecords.reduce((sum, record) => sum + record.amountPaid, 0);
-  const totalServices = filteredRecords.length;
-  const mpesaCount = filteredRecords.filter(r => r.paymentMethod === 'Mpesa').length;
-  const cashCount = filteredRecords.filter(r => r.paymentMethod === 'Cash').length;
-  const mpesaRevenue = filteredRecords.filter(r => r.paymentMethod === 'Mpesa').reduce((sum, record) => sum + record.amountPaid, 0);
-  const cashRevenue = filteredRecords.filter(r => r.paymentMethod === 'Cash').reduce((sum, record) => sum + record.amountPaid, 0);
+  // Get today's date for filtering
+  const today = new Date();
+  const todayString = today.toISOString().split('T')[0]; // YYYY-MM-DD format
+  
+  // Filter records for today only
+  const todayRecords = filteredRecords.filter(record => {
+    try {
+      // Handle different date formats
+      if (record.createdAt && record.createdAt.toDate) {
+        // Firestore timestamp
+        const recordDate = record.createdAt.toDate();
+        return recordDate.toDateString() === today.toDateString();
+      } else if (record.date) {
+        // Handle YYYY-MM-DD format or other formats
+        const recordDate = new Date(record.date);
+        if (!isNaN(recordDate.getTime())) {
+          return recordDate.toDateString() === today.toDateString();
+        }
+        // Fallback to direct string comparison
+        return record.date === todayString;
+      }
+      return false;
+    } catch (error) {
+      console.error('Date filtering error:', error);
+      return false;
+    }
+  });
+
+  // Calculate summary statistics for today only
+  const totalRevenue = todayRecords.reduce((sum, record) => sum + record.amountPaid, 0);
+  const totalServices = todayRecords.length;
+  const mpesaCount = todayRecords.filter(r => r.paymentMethod === 'Mpesa').length;
+  const cashCount = todayRecords.filter(r => r.paymentMethod === 'Cash').length;
+  const mpesaRevenue = todayRecords.filter(r => r.paymentMethod === 'Mpesa').reduce((sum, record) => sum + record.amountPaid, 0);
+  const cashRevenue = todayRecords.filter(r => r.paymentMethod === 'Cash').reduce((sum, record) => sum + record.amountPaid, 0);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -318,7 +511,7 @@ export function ServiceManagement({ records, onAddRecord }: ServiceManagementPro
         <Card className="hover:shadow-lg transition-all duration-300">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Services
+              Today's Services
             </CardTitle>
             <div className="p-2 rounded-lg bg-blue-50">
               <Car className="h-4 w-4 text-blue-600" />
@@ -335,7 +528,7 @@ export function ServiceManagement({ records, onAddRecord }: ServiceManagementPro
         <Card className="hover:shadow-lg transition-all duration-300">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Revenue
+              Today's Revenue
             </CardTitle>
             <div className="p-2 rounded-lg bg-green-50">
               <DollarSign className="h-4 w-4 text-green-600" />
@@ -352,7 +545,7 @@ export function ServiceManagement({ records, onAddRecord }: ServiceManagementPro
         <Card className="hover:shadow-lg transition-all duration-300">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              M-Pesa
+              Today's M-Pesa
             </CardTitle>
             <div className="p-2 rounded-lg bg-green-50">
               <CreditCard className="h-4 w-4 text-green-600" />
@@ -369,7 +562,7 @@ export function ServiceManagement({ records, onAddRecord }: ServiceManagementPro
         <Card className="hover:shadow-lg transition-all duration-300">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Cash
+              Today's Cash
             </CardTitle>
             <div className="p-2 rounded-lg bg-blue-50">
               <DollarSign className="h-4 w-4 text-blue-600" />
@@ -574,63 +767,79 @@ export function ServiceManagement({ records, onAddRecord }: ServiceManagementPro
       {/* Add Service Form Modal */}
       {showForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-4xl max-h-[95vh] overflow-y-auto shadow-2xl border-4">
-            <CardHeader className="relative border-b-2 bg-gradient-to-r from-blue-50 to-blue-100 px-8 pt-8 pb-6">
+          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-xl">
+            <CardHeader className="relative border-b px-6 pt-6 pb-4">
               <Button
                 type="button"
                 variant="ghost"
-                size="lg"
-                onClick={() => setShowForm(false)}
-                className="absolute top-4 right-4 text-gray-500 hover:bg-gray-100 h-10 w-10 rounded-full"
+                size="sm"
+                onClick={() => {
+                  setShowForm(false);
+                  resetForm();
+                }}
+                className="absolute top-4 right-4 text-gray-500 hover:bg-gray-100 h-8 w-8"
               >
-                <X className="h-6 w-6" />
+                <X className="h-4 w-4" />
               </Button>
-              <CardTitle className="flex items-center gap-3 text-gray-900 text-2xl md:text-3xl font-bold">
-                <Plus className="h-8 w-8" />
-                Add New Car Wash Service
+              <CardTitle className="flex items-center gap-2 text-gray-900 text-xl font-bold">
+                <Plus className="h-5 w-5" />
+                {editingRecord ? 'Edit Car Wash Service' : 'Add New Car Wash Service'}
               </CardTitle>
-              <CardDescription className="text-gray-600 text-lg mt-2">
+              <CardDescription className="text-gray-600 text-sm mt-1">
                 Record details of the car wash service provided
               </CardDescription>
             </CardHeader>
-            <CardContent className="p-8">
-              <form onSubmit={handleSubmit} className="space-y-8">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div className="space-y-3">
-                    <Label htmlFor="registrationNumber" className="text-lg font-semibold text-gray-700">
-                      Registration Number
+            <CardContent className="p-6">
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="date" className="text-sm font-medium text-gray-700">
+                      Date *
+                    </Label>
+                    <Input
+                      id="date"
+                      type="date"
+                      value={formData.date}
+                      onChange={(e) => handleInputChange('date', e.target.value)}
+                      className="h-10 text-sm"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="registrationNumber" className="text-sm font-medium text-gray-700">
+                      Registration Number *
                     </Label>
                     <Input
                       id="registrationNumber"
                       placeholder="e.g., KCA 123A"
                       value={formData.registrationNumber}
                       onChange={(e) => handleInputChange('registrationNumber', e.target.value)}
-                      className="h-14 text-lg border-2 focus:border-blue-500 rounded-xl"
+                      className="h-10 text-sm"
                     />
                   </div>
 
-                  <div className="space-y-3">
-                    <Label htmlFor="carModel" className="text-lg font-semibold text-gray-700">
-                      Car Model
+                  <div className="space-y-2">
+                    <Label htmlFor="carModel" className="text-sm font-medium text-gray-700">
+                      Car Model *
                     </Label>
                     <Input
                       id="carModel"
                       placeholder="e.g., Toyota Camry"
                       value={formData.carModel}
                       onChange={(e) => handleInputChange('carModel', e.target.value)}
-                      className="h-14 text-lg border-2 focus:border-blue-500 rounded-xl"
+                      className="h-10 text-sm"
                     />
                   </div>
 
-                  <div className="space-y-3">
-                    <Label htmlFor="vehicleType" className="text-lg font-semibold text-gray-700">
-                      Vehicle Type
+                  <div className="space-y-2">
+                    <Label htmlFor="vehicleType" className="text-sm font-medium text-gray-700">
+                      Vehicle Type *
                     </Label>
                     <Select
                       value={formData.vehicleType}
                       onValueChange={(value) => handleInputChange('vehicleType', value)}
                     >
-                      <SelectTrigger className="h-14 text-lg border-2 focus:border-blue-500 rounded-xl">
+                      <SelectTrigger className="h-10 text-sm">
                         <SelectValue placeholder="Select vehicle type" />
                       </SelectTrigger>
                       <SelectContent>
@@ -644,15 +853,15 @@ export function ServiceManagement({ records, onAddRecord }: ServiceManagementPro
                     </Select>
                   </div>
 
-                  <div className="space-y-3">
-                    <Label htmlFor="serviceOffered" className="text-lg font-semibold text-gray-700">
-                      Service Offered
+                  <div className="space-y-2">
+                    <Label htmlFor="serviceOffered" className="text-sm font-medium text-gray-700">
+                      Service Offered *
                     </Label>
                     <Select
                       value={formData.serviceOffered}
                       onValueChange={(value) => handleInputChange('serviceOffered', value)}
                     >
-                      <SelectTrigger className="h-14 text-lg border-2 focus:border-blue-500 rounded-xl">
+                      <SelectTrigger className="h-10 text-sm">
                         <SelectValue placeholder="Select service" />
                       </SelectTrigger>
                       <SelectContent>
@@ -673,9 +882,9 @@ export function ServiceManagement({ records, onAddRecord }: ServiceManagementPro
                     </Select>
                   </div>
 
-                  <div className="space-y-3">
-                    <Label htmlFor="amountPaid" className="text-lg font-semibold text-gray-700">
-                      Amount Paid (KSh) - Auto-calculated
+                  <div className="space-y-2">
+                    <Label htmlFor="amountPaid" className="text-sm font-medium text-gray-700">
+                      Amount Paid (KSh) - Auto-calculated *
                     </Label>
                     <Input
                       id="amountPaid"
@@ -689,22 +898,22 @@ export function ServiceManagement({ records, onAddRecord }: ServiceManagementPro
                         const value = e.target.value.replace(/[^0-9.]/g, '');
                         handleInputChange('amountPaid', value);
                       }}
-                      className="h-14 bg-gray-50 text-lg border-2 focus:border-blue-500 rounded-xl [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
-                      readOnly={formData.vehicleType && formData.serviceOffered}
+                      className="h-10 bg-gray-50 text-sm [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                      readOnly={Boolean(formData.vehicleType && formData.serviceOffered)}
                     />
                     {formData.vehicleType && formData.serviceOffered && (
-                      <p className="text-sm text-gray-500">
+                      <p className="text-xs text-gray-500">
                         Price automatically calculated. You can edit if needed.
                       </p>
                     )}
                   </div>
 
-                  <div className="space-y-3">
-                    <Label htmlFor="paymentMethod" className="text-lg font-semibold text-gray-700">
-                      Payment Method
+                  <div className="space-y-2">
+                    <Label htmlFor="paymentMethod" className="text-sm font-medium text-gray-700">
+                      Payment Method *
                     </Label>
                     <Select value={formData.paymentMethod} onValueChange={(value) => handleInputChange('paymentMethod', value)}>
-                      <SelectTrigger className="h-14 text-lg border-2 focus:border-blue-500 rounded-xl">
+                      <SelectTrigger className="h-10 text-sm">
                         <SelectValue placeholder="Select payment method" />
                       </SelectTrigger>
                       <SelectContent>
@@ -714,15 +923,15 @@ export function ServiceManagement({ records, onAddRecord }: ServiceManagementPro
                     </Select>
                   </div>
 
-                  <div className="space-y-3">
-                    <Label htmlFor="attendant" className="text-lg font-semibold text-gray-700">
-                      Attendant
+                  <div className="space-y-2">
+                    <Label htmlFor="attendant" className="text-sm font-medium text-gray-700">
+                      Attendant *
                     </Label>
                     <Select
                       value={formData.attendant}
                       onValueChange={(value) => handleInputChange('attendant', value)}
                     >
-                      <SelectTrigger className="h-14 text-lg border-2 focus:border-blue-500 rounded-xl">
+                      <SelectTrigger className="h-10 text-sm">
                         <SelectValue placeholder="Select attendant" />
                       </SelectTrigger>
                       <SelectContent>
@@ -744,29 +953,29 @@ export function ServiceManagement({ records, onAddRecord }: ServiceManagementPro
                   </div>
 
                   {formData.paymentMethod === 'Mpesa' && (
-                    <div className="space-y-3">
-                      <Label htmlFor="mpesaCode" className="text-lg font-semibold text-gray-700">
-                        M-Pesa Code
+                    <div className="space-y-2">
+                      <Label htmlFor="mpesaCode" className="text-sm font-medium text-gray-700">
+                        M-Pesa Code *
                       </Label>
                       <Input
                         id="mpesaCode"
                         placeholder="Enter M-Pesa transaction code"
                         value={formData.mpesaCode}
                         onChange={(e) => handleInputChange('mpesaCode', e.target.value)}
-                        className="h-14 text-lg border-2 focus:border-blue-500 rounded-xl"
+                        className="h-10 text-sm"
                       />
                     </div>
                   )}
                 </div>
 
-                <div className="flex justify-center pt-6">
+                <div className="flex justify-end pt-4">
                   <Button 
                     type="submit" 
-                    size="lg"
-                    className="bg-blue-600 hover:bg-blue-700 text-white h-16 px-12 text-xl font-bold shadow-xl hover:shadow-2xl transition-all duration-300 rounded-xl"
+                    size="default"
+                    className="bg-blue-600 hover:bg-blue-700 text-white h-10 px-6 text-sm font-semibold"
                   >
-                    <Plus className="mr-3 h-6 w-6" />
-                    Add Service
+                    <Plus className="mr-2 h-4 w-4" />
+                    {editingRecord ? 'Update Service' : 'Add Service'}
                   </Button>
                 </div>
               </form>

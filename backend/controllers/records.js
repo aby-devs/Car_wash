@@ -95,8 +95,8 @@ exports.add_record = async (req, res) => {
       recordData.mpesaCode = mpesaCode.trim().toUpperCase();
     }
 
-    // Save to Firestore
-    const docRef = await service_db.collection('records').add(recordData);
+    // Save to Firestore using the service order ID as the document ID
+    const docRef = await service_db.collection('records').doc(serviceOrderId).set(recordData);
 
     res.status(201).json({
       success: true,

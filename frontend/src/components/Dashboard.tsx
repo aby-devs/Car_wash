@@ -106,7 +106,7 @@ export function Dashboard({ records, dashboardStats, todayStats, weekStats, mont
     }
   ];
 
-  const recentRecords = records.slice(-5).reverse();
+  const recentRecords = records.slice(-3).reverse();
 
   return (
     <div className="space-y-6">
@@ -198,16 +198,25 @@ export function Dashboard({ records, dashboardStats, todayStats, weekStats, mont
 
         <Card>
           <CardHeader>
-            <CardTitle>Staff Performance</CardTitle>
+            <CardTitle>Top 3 Staff Performance (This Month)</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
               {dashboardStats?.staffPerformance && dashboardStats.staffPerformance.length > 0 ? (
-                dashboardStats.staffPerformance.map(staff => (
+                dashboardStats.staffPerformance.slice(0, 3).map((staff, index) => (
                   <div key={staff.attendant} className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
-                    <div>
-                      <p className="font-medium">{staff.attendant}</p>
-                      <p className="text-sm text-muted-foreground">{staff.services} services</p>
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                        index === 0 ? 'bg-yellow-100 text-yellow-800' :
+                        index === 1 ? 'bg-gray-100 text-gray-800' :
+                        'bg-orange-100 text-orange-800'
+                      }`}>
+                        {index + 1}
+                      </div>
+                      <div>
+                        <p className="font-medium">{staff.attendant}</p>
+                        <p className="text-sm text-muted-foreground">{staff.services} services</p>
+                      </div>
                     </div>
                     <div className="text-right">
                       <p className="font-semibold">KSh {staff.revenue.toLocaleString()}</p>

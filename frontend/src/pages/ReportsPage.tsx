@@ -10,6 +10,7 @@ import { apiService } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import * as XLSX from 'xlsx';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -90,9 +91,12 @@ export function ReportsPage() {
     selectedDay: ''
   });
 
+  // Get current year for month selection
+  const currentYear = new Date().getFullYear();
+
   useEffect(() => {
     loadData();
-  }, []);
+  }, [filters]); // Reload data when filters change
 
   // Function to calculate date range based on selected period
   const getDateRange = () => {
@@ -110,9 +114,9 @@ export function ReportsPage() {
     // If specific week is selected
     if (filters.selectedWeek && filters.selectedWeek !== 'all') {
       const [year, week] = filters.selectedWeek.split('-W');
-      const startOfWeek = new Date(year, 0, 1);
+      const startOfWeek = new Date(parseInt(year), 0, 1);
       const dayOfWeek = startOfWeek.getDay();
-      const daysToAdd = (week - 1) * 7 - dayOfWeek + 1;
+      const daysToAdd = (parseInt(week) - 1) * 7 - dayOfWeek + 1;
       startOfWeek.setDate(startOfWeek.getDate() + daysToAdd);
       
       const endOfWeek = new Date(startOfWeek);
@@ -124,11 +128,11 @@ export function ReportsPage() {
       };
     }
     
-    // If specific month is selected
+    // If specific month is selected - always use current year
     if (filters.selectedMonth && filters.selectedMonth !== 'all') {
-      const [year, month] = filters.selectedMonth.split('-');
-      const startOfMonth = new Date(parseInt(year), parseInt(month) - 1, 1);
-      const endOfMonth = new Date(parseInt(year), parseInt(month), 0);
+      const month = parseInt(filters.selectedMonth);
+      const startOfMonth = new Date(currentYear, month - 1, 1);
+      const endOfMonth = new Date(currentYear, month, 0);
       
       return {
         startDate: startOfMonth.toISOString().split('T')[0],
@@ -156,9 +160,9 @@ export function ReportsPage() {
     }
     
     if (filters.selectedMonth && filters.selectedMonth !== 'all') {
-      const [year, month] = filters.selectedMonth.split('-');
-      const monthName = new Date(parseInt(year), parseInt(month) - 1, 1).toLocaleDateString('en-US', { month: 'long' });
-      return `${monthName} ${year}`;
+      const month = parseInt(filters.selectedMonth);
+      const monthName = new Date(currentYear, month - 1, 1).toLocaleDateString('en-US', { month: 'long' });
+      return `${monthName} ${currentYear}`;
     }
     
     return 'Full Report (All Time)';
@@ -177,6 +181,10 @@ export function ReportsPage() {
       
       if (dateRange.startDate) apiParams.startDate = dateRange.startDate;
       if (dateRange.endDate) apiParams.endDate = dateRange.endDate;
+      
+      console.log('Reports API params:', apiParams);
+      console.log('Selected filters:', filters);
+      console.log('Date range:', dateRange);
       
       const response = await apiService.getRecords(apiParams);
       
@@ -311,33 +319,146 @@ export function ReportsPage() {
   };
 
   const exportData = () => {
-    // Simple CSV export functionality
-    const csvContent = [
-      ['Date', 'Registration', 'Model', 'Vehicle Type', 'Service', 'Amount', 'Payment Method', 'Attendant'],
-      ...records.map(record => [
-        record.date,
-        record.registrationNumber,
-        record.carModel,
-        record.vehicleType || (record.services && record.services.includes(' - ') ? record.services.split(' - ')[0] : '-'),
-        record.serviceOffered || (record.services && record.services.includes(' - ') ? record.services.split(' - ')[1] : record.services),
-        record.amountPaid,
-        record.paymentMethod,
-        record.attendant
-      ])
-    ].map(row => row.join(',')).join('\n');
+    try {
+      // Create a new workbook
+      const workbook = XLSX.utils.book_new();
+      
+      // Prepare data for export
+      const exportRecords = records.map(record => ({
+        'Date': record.date,
+        'Registration Number': record.registrationNumber,
+        'Car Model': record.carModel,
+        'Vehicle Type': record.vehicleType || (record.services && record.services.includes(' - ') ? record.services.split(' - ')[0] : '-'),
+        'Service Offered': record.serviceOffered || (record.services && record.services.includes(' - ') ? record.services.split(' - ')[1] : record.services),
+        'Amount Paid (KSh)': record.amountPaid,
+        'Payment Method': record.paymentMethod,
+        'Attendant': record.attendant,
+        'M-Pesa Code': record.mpesaCode || '-',
+        'Time': record.time || '-',
+        'Status': record.status || 'Completed'
+      }));
 
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `car-wash-reports-${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    window.URL.revokeObjectURL(url);
-    
-    toast({
-      title: "Export Successful",
-      description: "Data exported as CSV file",
-    });
+      // Create the main data worksheet
+      const dataWorksheet = XLSX.utils.json_to_sheet(exportRecords);
+      
+      // Set column widths
+      const columnWidths = [
+        { wch: 12 }, // Date
+        { wch: 15 }, // Registration Number
+        { wch: 20 }, // Car Model
+        { wch: 15 }, // Vehicle Type
+        { wch: 25 }, // Service Offered
+        { wch: 15 }, // Amount Paid
+        { wch: 12 }, // Payment Method
+        { wch: 15 }, // Attendant
+        { wch: 15 }, // M-Pesa Code
+        { wch: 10 }, // Time
+        { wch: 12 }  // Status
+      ];
+      dataWorksheet['!cols'] = columnWidths;
+
+      // Add the data worksheet
+      XLSX.utils.book_append_sheet(workbook, dataWorksheet, 'Car Wash Records');
+
+      // Create summary data
+      const summaryData = [];
+      
+      if (analytics) {
+        // Header
+        summaryData.push(['CAR WASH MANAGEMENT SYSTEM - ANALYTICS SUMMARY']);
+        summaryData.push(['Generated on:', new Date().toLocaleDateString('en-US', { 
+          weekday: 'long', 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        })]);
+        summaryData.push(['Period:', getDateRangeDisplayName()]);
+        summaryData.push([]); // Empty row
+
+        // Key Metrics
+        summaryData.push(['KEY PERFORMANCE INDICATORS']);
+        summaryData.push(['Total Revenue (KSh)', analytics.totalRevenue.toLocaleString()]);
+        summaryData.push(['Total Vehicles Washed', analytics.totalVehicles]);
+        summaryData.push(['Total Records', analytics.totalRecords]);
+        summaryData.push(['Active Attendants', analytics.attendantStats.length]);
+        summaryData.push(['Average Revenue per Vehicle (KSh)', analytics.totalVehicles ? Math.round(analytics.totalRevenue / analytics.totalVehicles) : 0]);
+        summaryData.push([]); // Empty row
+
+        // Top Performers
+        summaryData.push(['TOP PERFORMING ATTENDANTS']);
+        summaryData.push(['Rank', 'Attendant', 'Services', 'Revenue (KSh)', 'Commission (KSh)', 'Commission Rate (%)']);
+        analytics.attendantStats.slice(0, 5).forEach((attendant, index) => {
+          summaryData.push([
+            index + 1,
+            attendant.name,
+            attendant.vehicleCount,
+            attendant.revenue.toLocaleString(),
+            attendant.commission.toLocaleString(),
+            Math.round(attendant.commissionRate * 100)
+          ]);
+        });
+        summaryData.push([]); // Empty row
+
+        // Payment Method Analysis
+        summaryData.push(['PAYMENT METHOD ANALYSIS']);
+        summaryData.push(['Payment Method', 'Transactions', 'Revenue (KSh)', 'Percentage (%)']);
+        analytics.paymentMethodStats.forEach(payment => {
+          summaryData.push([
+            payment.method,
+            payment.count,
+            payment.revenue.toLocaleString(),
+            payment.percentage.toFixed(1)
+          ]);
+        });
+        summaryData.push([]); // Empty row
+
+        // Service Performance
+        summaryData.push(['SERVICE PERFORMANCE']);
+        summaryData.push(['Service', 'Vehicle Type', 'Count', 'Revenue (KSh)']);
+        analytics.serviceStats.slice(0, 10).forEach(service => {
+          summaryData.push([
+            service.service,
+            service.vehicleType,
+            service.count,
+            service.revenue.toLocaleString()
+          ]);
+        });
+      }
+
+      // Create summary worksheet
+      const summaryWorksheet = XLSX.utils.aoa_to_sheet(summaryData);
+      
+      // Set column widths for summary
+      summaryWorksheet['!cols'] = [
+        { wch: 20 }, // First column
+        { wch: 25 }, // Second column
+        { wch: 15 }, // Third column
+        { wch: 15 }  // Fourth column
+      ];
+
+      // Add the summary worksheet
+      XLSX.utils.book_append_sheet(workbook, summaryWorksheet, 'Summary & Analytics');
+
+      // Generate filename
+      const filename = `car-wash-report-${getDateRangeDisplayName().replace(/[^a-zA-Z0-9]/g, '-')}-${new Date().toISOString().split('T')[0]}.xlsx`;
+
+      // Write the file
+      XLSX.writeFile(workbook, filename);
+      
+      toast({
+        title: "Excel Export Successful",
+        description: "Data exported as Excel file with headers, data, and summary",
+      });
+    } catch (error) {
+      console.error('Error exporting to Excel:', error);
+      toast({
+        title: "Excel Export Failed",
+        description: "Could not generate Excel file. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   const exportToPDF = async () => {
@@ -421,16 +542,16 @@ export function ReportsPage() {
         yPosition = addMetric('Total Revenue', `KSh ${analytics.totalRevenue.toLocaleString()}`, yPosition);
         yPosition = addMetric('Total Vehicles Washed', analytics.totalVehicles.toString(), yPosition);
         yPosition = addMetric('Total Records', analytics.totalRecords.toString(), yPosition);
-        yPosition = addMetric('Average Revenue per Vehicle', `KSh ${analytics.averageRevenuePerVehicle.toLocaleString()}`, yPosition);
+        yPosition = addMetric('Average Revenue per Vehicle', `KSh ${((analytics as any).averageRevenuePerVehicle || 0).toLocaleString()}`, yPosition);
         
         yPosition = addLine(yPosition + 5);
       }
 
       // Top Performers Section
-      if (analytics && analytics.topPerformers.length > 0) {
+      if (analytics && (analytics as any).topPerformers && (analytics as any).topPerformers.length > 0) {
         yPosition = addSectionHeader('Top Performers', yPosition);
         
-        analytics.topPerformers.forEach((performer, index) => {
+        (analytics as any).topPerformers.forEach((performer: any, index: number) => {
           yPosition = addMetric(
             `${index + 1}. ${performer.name}`,
             `${performer.vehicles} vehicles • KSh ${performer.revenue.toLocaleString()} • ${performer.commissionRate}% commission`,
@@ -442,10 +563,10 @@ export function ReportsPage() {
       }
 
       // Service Analysis Section
-      if (analytics && analytics.serviceAnalysis.length > 0) {
+      if (analytics && (analytics as any).serviceAnalysis && (analytics as any).serviceAnalysis.length > 0) {
         yPosition = addSectionHeader('Service Performance Analysis', yPosition);
         
-        analytics.serviceAnalysis.forEach((service, index) => {
+        (analytics as any).serviceAnalysis.forEach((service: any, index: number) => {
           yPosition = addMetric(
             `${index + 1}. ${service.name}`,
             `${service.count} services • KSh ${service.revenue.toLocaleString()} • ${service.percentage.toFixed(1)}% of total`,
@@ -457,10 +578,10 @@ export function ReportsPage() {
       }
 
       // Payment Method Analysis
-      if (analytics && analytics.paymentAnalysis.length > 0) {
+      if (analytics && (analytics as any).paymentAnalysis && (analytics as any).paymentAnalysis.length > 0) {
         yPosition = addSectionHeader('Payment Method Analysis', yPosition);
         
-        analytics.paymentAnalysis.forEach((payment, index) => {
+        (analytics as any).paymentAnalysis.forEach((payment: any, index: number) => {
           yPosition = addMetric(
             `${index + 1}. ${payment.method}`,
             `${payment.count} transactions • KSh ${payment.amount.toLocaleString()} • ${payment.percentage.toFixed(1)}% of total`,
@@ -541,8 +662,8 @@ export function ReportsPage() {
         <div className="flex space-x-1 sm:space-x-2">
           <Button onClick={exportData} variant="outline" size="sm" className="text-xs sm:text-sm">
             <Download className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-            <span className="hidden sm:inline">Export CSV</span>
-            <span className="sm:hidden">CSV</span>
+            <span className="hidden sm:inline">Export Excel</span>
+            <span className="sm:hidden">Excel</span>
           </Button>
           <Button onClick={exportToPDF} variant="outline" size="sm" disabled={loading} className="text-xs sm:text-sm">
             <FileText className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
@@ -573,7 +694,6 @@ export function ReportsPage() {
               <Label htmlFor="month">Month</Label>
               <Select value={filters.selectedMonth} onValueChange={(value) => {
                 setFilters(prev => ({ ...prev, selectedMonth: value, selectedWeek: 'all', selectedDay: '' }));
-                loadData();
               }}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select Month" />
@@ -581,12 +701,11 @@ export function ReportsPage() {
                 <SelectContent>
                   <SelectItem value="all">All Months</SelectItem>
                   {Array.from({ length: 12 }, (_, i) => {
-                    const date = new Date(2024, i, 1);
+                    const date = new Date(currentYear, i, 1);
                     const monthName = date.toLocaleDateString('en-US', { month: 'long' });
-                    const year = new Date().getFullYear();
                     return (
-                      <SelectItem key={i} value={`${year}-${String(i + 1).padStart(2, '0')}`}>
-                        {monthName} {year}
+                      <SelectItem key={i} value={String(i + 1)}>
+                        {monthName} {currentYear}
                       </SelectItem>
                     );
                   })}
@@ -603,7 +722,6 @@ export function ReportsPage() {
                 value={filters.selectedDay}
                 onChange={(e) => {
                   setFilters(prev => ({ ...prev, selectedDay: e.target.value, selectedMonth: 'all', selectedWeek: 'all' }));
-                  loadData();
                 }}
               />
             </div>

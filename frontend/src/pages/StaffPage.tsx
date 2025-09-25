@@ -23,8 +23,7 @@ import { apiService, StaffCommissionData } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 
 export function StaffPage() {
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const [commissionData, setCommissionData] = useState<StaffCommissionData | null>(null);
+  const [allRecords, setAllRecords] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedAttendant, setSelectedAttendant] = useState<string | null>(null);
   const [attendantRecords, setAttendantRecords] = useState<any[]>([]);
@@ -34,24 +33,25 @@ export function StaffPage() {
   const [commissionFilter, setCommissionFilter] = useState('All');
   const { toast } = useToast();
 
-  const loadCommissionData = async () => {
+  const loadAllRecords = async () => {
     setLoading(true);
     try {
-      const response = await apiService.getStaffCommission(selectedDate);
+      // Load all records to calculate commission data
+      const response = await apiService.getRecords({ limit: 1000 });
       if (response.success && response.data) {
-        setCommissionData(response.data);
+        setAllRecords(response.data);
       } else {
         toast({
           title: "Error",
-          description: response.message || "Failed to load commission data",
+          description: response.message || "Failed to load records",
           variant: "destructive",
         });
       }
     } catch (error) {
-      console.error('Error loading commission data:', error);
+      console.error('Error loading records:', error);
       toast({
         title: "Error",
-        description: "Failed to load commission data. Please try again.",
+        description: "Failed to load records. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -59,9 +59,10 @@ export function StaffPage() {
     }
   };
 
+  // Load all records on component mount
   useEffect(() => {
-    loadCommissionData();
-  }, [selectedDate]);
+    loadAllRecords();
+  }, []);
 
   const formatCurrency = (amount: number) => {
     return `KSh ${amount.toLocaleString()}`;
@@ -83,45 +84,64 @@ export function StaffPage() {
     });
   };
 
+  // Calculate commission data from all records
+  const calculateCommissionData = () => {
+    const staffMap = new Map();
+    let totalRevenue = 0;
+    let totalServices = 0;
+    const commissionRate = 30; // 30% commission rate
+
+    allRecords.forEach(record => {
+      totalRevenue += record.amountPaid;
+      totalServices += 1;
+
+      const attendant = record.attendant;
+      if (!staffMap.has(attendant)) {
+        staffMap.set(attendant, {
+          attendant,
+          services: 0,
+          revenue: 0,
+          commission: 0,
+          averageService: 0
+        });
+      }
+
+      const staffData = staffMap.get(attendant);
+      staffData.services += 1;
+      staffData.revenue += record.amountPaid;
+      staffData.commission += record.amountPaid * (commissionRate / 100);
+    });
+
+    // Calculate average service for each staff member
+    staffMap.forEach(staff => {
+      staff.averageService = staff.services > 0 ? staff.revenue / staff.services : 0;
+    });
+
+    const staffBreakdown = Array.from(staffMap.values()).sort((a, b) => b.commission - a.commission);
+    const totalCommission = staffBreakdown.reduce((sum, staff) => sum + staff.commission, 0);
+
+    return {
+      totalStaff: staffMap.size,
+      totalRevenue,
+      totalServices,
+      totalCommission,
+      commissionRate,
+      staffBreakdown
+    };
+  };
+
+  const commissionData = calculateCommissionData();
+
   const handleViewRecords = async (attendant: string) => {
     setSelectedAttendant(attendant);
     setShowRecordsModal(true);
     setLoadingRecords(true);
-    setAttendantRecords([]);
     
     try {
-      // Create start and end of day for the selected date
-      const selectedDateObj = new Date(selectedDate);
-      const startOfDay = new Date(selectedDateObj.getFullYear(), selectedDateObj.getMonth(), selectedDateObj.getDate());
-      const endOfDay = new Date(selectedDateObj.getFullYear(), selectedDateObj.getMonth(), selectedDateObj.getDate(), 23, 59, 59, 999);
-      
-      console.log('Fetching records for:', {
-        attendant,
-        selectedDate,
-        startOfDay: startOfDay.toISOString(),
-        endOfDay: endOfDay.toISOString()
-      });
-      
-      // Load records for the specific attendant and date
-      const response = await apiService.getRecords({ 
-        startDate: startOfDay.toISOString(),
-        endDate: endOfDay.toISOString(),
-        attendant: attendant 
-      });
-      
-      console.log('API Response:', response);
-      
-      if (response.success && response.data) {
-        setAttendantRecords(response.data);
-        console.log('Records loaded:', response.data);
-      } else {
-        console.error('API Error:', response.message);
-        toast({
-          title: "Error",
-          description: response.message || "Failed to load attendant records",
-          variant: "destructive",
-        });
-      }
+      // Filter all records for the specific attendant
+      const attendantRecords = allRecords.filter(record => record.attendant === attendant);
+      setAttendantRecords(attendantRecords);
+      console.log('Records loaded:', attendantRecords);
     } catch (error) {
       console.error('Error loading attendant records:', error);
       toast({
@@ -162,21 +182,22 @@ export function StaffPage() {
     }
   };
 
-  // Filter staff data based on search and commission filter
-  const filteredStaff = commissionData?.staffBreakdown.filter(staff => {
-    const matchesSearch = staff.attendant.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCommission = commissionFilter === 'All' || 
-      (commissionFilter === 'High' && staff.commission >= 1000) ||
-      (commissionFilter === 'Medium' && staff.commission >= 500 && staff.commission < 1000) ||
-      (commissionFilter === 'Low' && staff.commission < 500);
-    return matchesSearch && matchesCommission;
-  }) || [];
+  // Filter and sort staff data based on search and commission filter
+  const filteredStaff = commissionData.staffBreakdown
+    .filter(staff => {
+      const matchesSearch = staff.attendant.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesCommission = commissionFilter === 'All' || 
+        (commissionFilter === 'High' && staff.commission >= 1000) ||
+        (commissionFilter === 'Medium' && staff.commission >= 500 && staff.commission < 1000) ||
+        (commissionFilter === 'Low' && staff.commission < 500);
+      return matchesSearch && matchesCommission;
+    });
 
   // Create stats array like Dashboard
   const stats = [
     {
       title: "Total Staff",
-      value: loading ? "" : (commissionData?.totalStaff || 0).toString(),
+      value: loading ? "" : commissionData.totalStaff.toString(),
       subtitle: "Active staff members",
       icon: Users,
       color: "text-blue-600",
@@ -184,15 +205,15 @@ export function StaffPage() {
     },
     {
       title: "Total Commission",
-      value: loading ? "" : formatCurrency(commissionData?.totalCommission || 0),
-      subtitle: `${commissionData?.commissionRate || 30}% of total revenue`,
+      value: loading ? "" : formatCurrency(commissionData.totalCommission),
+      subtitle: `${commissionData.commissionRate}% of total revenue`,
       icon: DollarSign,
       color: "text-green-600",
       bgColor: "bg-green-50"
     },
     {
       title: "Total Services",
-      value: loading ? "" : (commissionData?.totalServices || 0).toString(),
+      value: loading ? "" : commissionData.totalServices.toString(),
       subtitle: "Services completed",
       icon: TrendingUp,
       color: "text-purple-600",
@@ -200,7 +221,7 @@ export function StaffPage() {
     },
     {
       title: "Commission Rate",
-      value: loading ? "" : `${commissionData?.commissionRate || 30}%`,
+      value: loading ? "" : `${commissionData.commissionRate}%`,
       subtitle: "Per service commission",
       icon: FileText,
       color: "text-orange-600",
@@ -214,25 +235,7 @@ export function StaffPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Staff Commission</h1>
-          <p className="text-sm md:text-base text-gray-600">Track staff performance and commission payments</p>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-            <Input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="w-auto"
-            />
-          </div>
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])}
-          >
-            Today
-          </Button>
+          <p className="text-sm md:text-base text-gray-600">All staff commission transactions and performance tracking</p>
         </div>
       </div>
 
@@ -256,29 +259,28 @@ export function StaffPage() {
                   stat.value
                 )}
               </div>
-              <p className="text-xs text-muted-foreground mt-1">
+              <div className="text-xs text-muted-foreground mt-1">
                 {loading ? (
                   <div className="h-3 bg-gray-200 rounded animate-pulse"></div>
                 ) : (
                   stat.subtitle
                 )}
-              </p>
+              </div>
             </CardContent>
           </Card>
         ))}
       </div>
 
       {/* Commission Analysis */}
-      {commissionData && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Commission Analysis</CardTitle>
-            <CardDescription>
-              Revenue breakdown for {formatDate(selectedDate)}
-            </CardDescription>
-          </CardHeader>
+      <Card>
+        <CardHeader>
+          <CardTitle>Commission Analysis</CardTitle>
+          <CardDescription>
+            Overall revenue breakdown (all transactions)
+          </CardDescription>
+        </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="flex justify-between items-center p-4 bg-green-50 rounded-lg">
                 <div>
                   <p className="font-semibold text-green-800">Total Revenue</p>
@@ -311,7 +313,6 @@ export function StaffPage() {
             </div>
           </CardContent>
         </Card>
-      )}
 
       {/* Commission Table */}
       <Card>
@@ -320,7 +321,7 @@ export function StaffPage() {
             <div>
               <CardTitle>Staff Commission Details</CardTitle>
               <CardDescription>
-                Individual staff commission for {formatDate(selectedDate)}
+                All staff commission transactions (sorted by highest commission first)
               </CardDescription>
             </div>
             
@@ -478,7 +479,7 @@ export function StaffPage() {
               Records for {selectedAttendant}
             </DialogTitle>
             <DialogDescription>
-              Vehicle wash records for {formatDate(selectedDate)}
+              All vehicle wash records for {selectedAttendant}
             </DialogDescription>
           </DialogHeader>
           

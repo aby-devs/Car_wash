@@ -49,25 +49,40 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           return;
         }
 
-        // We have cookies, verify the token
-        const response = await apiService.verifyToken();
-        if (response.success && response.data) {
-          setUser(response.data.user);
-        } else {
-          // Token is invalid, try to refresh
-          const refreshSuccess = await refreshAuthToken();
-          if (!refreshSuccess) {
-            // Refresh failed, clear user state
+        // We have cookies, try to verify the token first
+        try {
+          const response = await apiService.verifyToken();
+          if (response.success && response.data) {
+            setUser(response.data.user);
+            setLoading(false);
+            return;
+          }
+        } catch (verifyError) {
+          console.log('Token verification failed, attempting refresh:', verifyError);
+        }
+
+        // If verify failed, try to refresh the token
+        const refreshSuccess = await refreshAuthToken();
+        if (refreshSuccess) {
+          // After successful refresh, try to verify again
+          try {
+            const response = await apiService.verifyToken();
+            if (response.success && response.data) {
+              setUser(response.data.user);
+            } else {
+              setUser(null);
+            }
+          } catch (error) {
+            console.error('Token verification after refresh failed:', error);
             setUser(null);
           }
+        } else {
+          // Refresh failed, clear user state
+          setUser(null);
         }
       } catch (error) {
         console.error('Auth check failed:', error);
-        // Try to refresh token
-        const refreshSuccess = await refreshAuthToken();
-        if (!refreshSuccess) {
-          setUser(null);
-        }
+        setUser(null);
       }
       setLoading(false);
     };
@@ -81,14 +96,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const refreshAuthToken = async (): Promise<boolean> => {
     try {
+      console.log('Attempting to refresh token...');
       const response = await apiService.refreshToken();
+      console.log('Refresh token response:', response);
+      
       if (response.success) {
+        console.log('Token refreshed successfully');
         return true;
+      } else {
+        console.error('Token refresh failed:', response.message);
+        return false;
       }
     } catch (error) {
-      console.error('Token refresh failed:', error);
+      console.error('Token refresh failed with error:', error);
+      return false;
     }
-    return false;
   };
 
   const login = async (email: string, password: string): Promise<boolean> => {
