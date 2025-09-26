@@ -9,6 +9,7 @@ const verifyToken = async (req, res, next) => {
     // Get token from cookie instead of header
     const token = req.cookies.accessToken;
     
+    
     if (!token) {
       return res.status(401).json({
         success: false,
@@ -31,37 +32,6 @@ const verifyToken = async (req, res, next) => {
     }
 
     const userData = userSnapshot.val();
-    
-    // Check if refresh token exists in separate node
-    const refreshTokenRef = admin.database().ref(`refreshTokens/${decoded.userId}`);
-    const tokenSnapshot = await refreshTokenRef.once('value');
-    
-    if (!tokenSnapshot.exists()) {
-      return res.status(401).json({
-        success: false,
-        message: 'Refresh token not found'
-      });
-    }
-
-    const tokenData = tokenSnapshot.val();
-    
-    // Check if token matches and hasn't expired
-    if (tokenData.token !== decoded.refreshToken) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid refresh token'
-      });
-    }
-
-    // Check if token has expired
-    if (Date.now() > tokenData.expiresAt) {
-      // Remove expired token
-      await refreshTokenRef.remove();
-      return res.status(401).json({
-        success: false,
-        message: 'Refresh token has expired'
-      });
-    }
 
     // Add user info to request
     req.user = {

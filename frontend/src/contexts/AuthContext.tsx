@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { apiService } from '@/services/api';
 
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 interface User {
   userId: string;
   email: string;
@@ -11,6 +13,7 @@ interface User {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  initialized: boolean;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
   refreshAuthToken: () => Promise<boolean>;
@@ -34,57 +37,39 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [initialized, setInitialized] = useState(false);
 
-  // Check if user is authenticated on app load (only if cookies exist)
+  // Check if user is authenticated on app load
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        // Check if we have any auth cookies first
-        const hasAuthCookies = document.cookie.includes('accessToken') || document.cookie.includes('refreshToken');
         
-        if (!hasAuthCookies) {
-          // No cookies, user is not logged in
-          setUser(null);
-          setLoading(false);
-          return;
-        }
-
-        // We have cookies, try to verify the token first
+        // Try to verify the token first
         try {
           const response = await apiService.verifyToken();
           if (response.success && response.data) {
             setUser(response.data.user);
             setLoading(false);
+            setInitialized(true);
             return;
           }
         } catch (verifyError) {
-          console.log('Token verification failed, attempting refresh:', verifyError);
+          // Token verification failed, will try to refresh
         }
 
         // If verify failed, try to refresh the token
         const refreshSuccess = await refreshAuthToken();
         if (refreshSuccess) {
-          // After successful refresh, try to verify again
-          try {
-            const response = await apiService.verifyToken();
-            if (response.success && response.data) {
-              setUser(response.data.user);
-            } else {
-              setUser(null);
-            }
-          } catch (error) {
-            console.error('Token verification after refresh failed:', error);
-            setUser(null);
-          }
-        } else {
-          // Refresh failed, clear user state
           setUser(null);
         }
+        setLoading(false);
+        setInitialized(true);
       } catch (error) {
         console.error('Auth check failed:', error);
         setUser(null);
+        setLoading(false);
+        setInitialized(true);
       }
-      setLoading(false);
     };
 
     checkAuth();
@@ -96,12 +81,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const refreshAuthToken = async (): Promise<boolean> => {
     try {
-      console.log('Attempting to refresh token...');
       const response = await apiService.refreshToken();
-      console.log('Refresh token response:', response);
-      
       if (response.success) {
-        console.log('Token refreshed successfully');
+        // After successful refresh, get user data
+        try {
+          const verifyResponse = await apiService.verifyToken();
+          if (verifyResponse.success && verifyResponse.data) {
+            setUser(verifyResponse.data.user);
+          }
+        } catch (verifyError) {
+          console.error('Failed to get user data after refresh:', verifyError);
+        }
         return true;
       } else {
         console.error('Token refresh failed:', response.message);
@@ -139,11 +129,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const value: AuthContextType = {
     user,
     loading,
+    initialized,
     login,
     logout,
     refreshAuthToken,
     isAuthenticated: !!user
   };
+
+  
+  // Test backend connection
+  useEffect(() => {
+    const testBackend = async () => {
+      try {
+        const response = await fetch(`${BASE_URL}/auth/health`);
+        const data = await response.json();
+      } catch (error) {
+        console.error('Backend health check failed:', error);
+      }
+    };
+    testBackend();
+  }, []);
 
   return (
     <AuthContext.Provider value={value}>

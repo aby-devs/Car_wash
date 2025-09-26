@@ -1,5 +1,5 @@
 // API service for communicating with the backend
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 const RECORDS_BASE_URL = `${BASE_URL}/records`;
 const AUTH_BASE_URL = `${BASE_URL}/auth`;
 const STAFF_BASE_URL = `${BASE_URL}/staff`;
@@ -14,7 +14,6 @@ export interface CarWashRecord {
   attendant: string;
   date: string;
   time: string;
-  status?: 'Completed' | 'Pending' | 'In Progress';
   mpesaCode?: string;
   createdAt?: any;
   updatedAt?: any;
@@ -186,6 +185,38 @@ class ApiService {
   async getDashboardStats(period?: 'all' | 'today' | 'week' | 'month'): Promise<ApiResponse<DashboardStats>> {
     const params = period ? `?period=${period}` : '';
     return this.request<DashboardStats>(`/dashboard${params}`, { baseURL: RECORDS_BASE_URL });
+  }
+
+  // Commission API
+  async calculateCommission(recordId: string, commissionRate: number = 30): Promise<ApiResponse<any>> {
+    return this.request(`/${recordId}/commission`, {
+      method: 'POST',
+      body: JSON.stringify({ commissionRate }),
+      baseURL: RECORDS_BASE_URL,
+    });
+  }
+
+  async getCommissions(params?: {
+    attendant?: string;
+    startDate?: string;
+    endDate?: string;
+    limit?: number;
+  }): Promise<ApiResponse<any[]>> {
+    const queryParams = new URLSearchParams();
+    if (params?.attendant) queryParams.append('attendant', params.attendant);
+    if (params?.startDate) queryParams.append('startDate', params.startDate);
+    if (params?.endDate) queryParams.append('endDate', params.endDate);
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    
+    const endpoint = `/commissions${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    return this.request<any[]>(endpoint, { baseURL: RECORDS_BASE_URL });
+  }
+
+  async deleteCommission(commissionId: string): Promise<ApiResponse<any>> {
+    return this.request(`/commissions/${commissionId}`, {
+      method: 'DELETE',
+      baseURL: RECORDS_BASE_URL,
+    });
   }
 
   // Auth API

@@ -27,11 +27,11 @@ const staffRoutes = require('./routes/staff');
 // API Routes
 app.use('/records', recordsRoutes);  // /records/*
 app.use('/auth', authRoutes);         // /api/auth/*
-app.use('/staff', staffRoutes);        // /api/staff/*
+app.use('/api/staff', staffRoutes);    // /api/staff/*
 
 
 // Catch all handler: send back React's index.html file for any non-API routes
-app.get(/^(?!\/(records|auth|staff)).*/, (req, res) => {
+app.get(/^(?!\/(records|auth|api)).*/, (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 

@@ -3,7 +3,6 @@ const { admin, service_db } = require('../configs/firebase_db');
 // Test endpoint to verify backend is working
 exports.test_records = async (req, res) => {
   try {
-    console.log('Test endpoint called');
     
     // Get all records without any filtering
     const snapshot = await service_db.collection('records').limit(5).get();
@@ -36,7 +35,16 @@ exports.test_records = async (req, res) => {
 const generateServiceOrderId = async () => {
   const currentYear = new Date().getFullYear();
   const recordsRef = service_db.collection('records');
-  const snapshot = await recordsRef.where('id', '>=', `SO-${currentYear}-001`).get();
+  
+  // Get all records for the current year by querying createdAt field
+  const startOfYear = new Date(currentYear, 0, 1); // January 1st
+  const endOfYear = new Date(currentYear, 11, 31, 23, 59, 59, 999); // December 31st
+  
+  const snapshot = await recordsRef
+    .where('createdAt', '>=', startOfYear)
+    .where('createdAt', '<=', endOfYear)
+    .get();
+  
   const count = snapshot.size + 1;
   return `SO-${currentYear}-${count.toString().padStart(3, '0')}`;
 };
@@ -47,12 +55,15 @@ exports.add_record = async (req, res) => {
     const {
       registrationNumber,
       carModel,
+      vehicleType,
       services,
       amountPaid,
       paymentMethod,
       attendant,
-      mpesaCode
+      mpesaCode,
+      date
     } = req.body;
+
 
     // Validate required fields
     if (!registrationNumber || !carModel || !services || !amountPaid || !paymentMethod || !attendant) {
@@ -79,13 +90,14 @@ exports.add_record = async (req, res) => {
       id: serviceOrderId,
       registrationNumber: registrationNumber.trim().toUpperCase(),
       carModel: carModel.trim(),
+      vehicleType: vehicleType || '', // Store vehicle type
       services: services.trim(),
+      serviceOffered: services.trim(), // Also store serviceOffered for compatibility
       amountPaid: parseFloat(amountPaid),
       paymentMethod,
       attendant: attendant.trim(),
-      date: now.toLocaleDateString(),
+      date: date || now.toISOString().split('T')[0], // Use provided date or current date in YYYY-MM-DD format
       time: now.toLocaleTimeString(),
-      status: 'Pending',
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp()
     };
@@ -97,6 +109,51 @@ exports.add_record = async (req, res) => {
 
     // Save to Firestore using the service order ID as the document ID
     const docRef = await service_db.collection('records').doc(serviceOrderId).set(recordData);
+
+    // Automatically calculate and save commission based on daily revenue
+    try {
+      // Get all records for this attendant on this date to calculate daily revenue
+      const attendantRecordsSnapshot = await service_db.collection('records')
+        .where('attendant', '==', recordData.attendant)
+        .where('date', '==', recordData.date)
+        .get();
+      
+      // Calculate daily revenue including the current record
+      let dailyRevenue = 0;
+      attendantRecordsSnapshot.forEach(doc => {
+        const record = doc.data();
+        dailyRevenue += record.amountPaid;
+      });
+      dailyRevenue += recordData.amountPaid; // Include current record
+      
+      // Determine commission rate based on daily revenue
+      const commissionRate = dailyRevenue >= 6000 ? 30 : 20;
+      const commissionAmount = (recordData.amountPaid * commissionRate) / 100;
+      
+      
+      const commissionData = {
+        recordId: serviceOrderId,
+        attendant: recordData.attendant,
+        registrationNumber: recordData.registrationNumber,
+        carModel: recordData.carModel,
+        vehicleType: recordData.vehicleType,
+        services: recordData.services,
+        serviceOffered: recordData.serviceOffered,
+        amountPaid: recordData.amountPaid,
+        commissionAmount: commissionAmount,
+        commissionRate: commissionRate,
+        dailyRevenue: dailyRevenue, // Store daily revenue for reference
+        date: recordData.date,
+        time: recordData.time,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      };
+      
+      await service_db.collection('commissions').add(commissionData);
+    } catch (commissionError) {
+      console.error('Error saving commission:', commissionError);
+      // Don't fail the record creation if commission fails
+    }
 
     res.status(201).json({
       success: true,
@@ -120,30 +177,26 @@ exports.add_record = async (req, res) => {
 // Get all car wash records with optional filtering
 exports.get_records = async (req, res) => {
   try {
-    const { status, paymentMethod, attendant, startDate, endDate, limit = 100 } = req.query;
+    const { paymentMethod, attendant, startDate, endDate, limit = 100 } = req.query;
     
-    console.log('Received query parameters:', { status, paymentMethod, attendant, startDate, endDate, limit });
     
     let query = service_db.collection('records');
 
     // Apply filters - prioritize date range first, then other filters
     if (startDate) {
       const start = new Date(startDate);
-      console.log('Filtering by startDate:', start);
       query = query.where('createdAt', '>=', start);
     }
     
     if (endDate) {
       const end = new Date(endDate);
       end.setHours(23, 59, 59, 999); // End of day
-      console.log('Filtering by endDate:', end);
       query = query.where('createdAt', '<=', end);
     }
 
     // Order by creation date (newest first) and limit
     query = query.orderBy('createdAt', 'desc').limit(parseInt(limit));
 
-    console.log('Executing Firestore query...');
     const snapshot = await query.get();
     let records = [];
 
@@ -154,25 +207,17 @@ exports.get_records = async (req, res) => {
       });
     });
 
-    console.log(`Found ${records.length} records before filtering`);
 
     // Apply client-side filtering for fields that don't have composite indexes
-    if (status && status !== 'All Status') {
-      records = records.filter(record => record.status === status);
-      console.log(`After status filtering: ${records.length} records`);
-    }
     
     if (paymentMethod && paymentMethod !== 'All') {
       records = records.filter(record => record.paymentMethod === paymentMethod);
-      console.log(`After payment method filtering: ${records.length} records`);
     }
     
     if (attendant) {
       records = records.filter(record => record.attendant === attendant);
-      console.log(`After attendant filtering: ${records.length} records`);
     }
 
-    console.log(`Returning ${records.length} records`);
 
     res.status(200).json({
       success: true,
@@ -271,13 +316,220 @@ exports.update_record = async (req, res) => {
   }
 };
 
+// Debug function to list all record IDs
+exports.debug_all_ids = async (req, res) => {
+  try {
+    const allRecordsSnapshot = await service_db.collection('records').get();
+    const records = [];
+    
+    allRecordsSnapshot.forEach(doc => {
+      records.push({
+        id: doc.id,
+        registrationNumber: doc.data().registrationNumber,
+        createdAt: doc.data().createdAt
+      });
+    });
+    
+    
+    res.status(200).json({
+      success: true,
+      message: 'All record IDs retrieved',
+      data: records,
+      count: records.length
+    });
+  } catch (error) {
+    console.error('Error getting all record IDs:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
+// Calculate and save commission for a record
+exports.calculate_and_save_commission = async (req, res) => {
+  try {
+    const { recordId } = req.params;
+    
+    
+    // Get the record
+    const recordDoc = await service_db.collection('records').doc(recordId).get();
+    
+    if (!recordDoc.exists) {
+      return res.status(404).json({
+        success: false,
+        message: 'Record not found'
+      });
+    }
+    
+    const record = recordDoc.data();
+    
+    // Get all records for this attendant on this date to calculate daily revenue
+    const attendantRecordsSnapshot = await service_db.collection('records')
+      .where('attendant', '==', record.attendant)
+      .where('date', '==', record.date)
+      .get();
+    
+    // Calculate daily revenue
+    let dailyRevenue = 0;
+    attendantRecordsSnapshot.forEach(doc => {
+      const rec = doc.data();
+      dailyRevenue += rec.amountPaid;
+    });
+    
+    // Determine commission rate based on daily revenue
+    const commissionRate = dailyRevenue >= 6000 ? 30 : 20;
+    const commissionAmount = (record.amountPaid * commissionRate) / 100;
+    
+    
+    // Create commission record
+    const commissionData = {
+      recordId: recordId,
+      attendant: record.attendant,
+      registrationNumber: record.registrationNumber,
+      carModel: record.carModel,
+      vehicleType: record.vehicleType,
+      services: record.services,
+      serviceOffered: record.serviceOffered,
+      amountPaid: record.amountPaid,
+      commissionAmount: commissionAmount,
+      commissionRate: commissionRate,
+      dailyRevenue: dailyRevenue, // Store daily revenue for reference
+      date: record.date,
+      time: record.time,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    };
+    
+    // Save commission to Firestore
+    const commissionRef = await service_db.collection('commissions').add(commissionData);
+    
+    
+    res.status(201).json({
+      success: true,
+      message: 'Commission calculated and saved successfully',
+      data: {
+        commissionId: commissionRef.id,
+        ...commissionData
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error calculating commission:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
+// Get commissions with optional filtering
+exports.get_commissions = async (req, res) => {
+  try {
+    const { attendant, startDate, endDate, limit = 100 } = req.query;
+    
+    
+    let query = service_db.collection('commissions');
+    
+    // Apply filters
+    if (attendant) {
+      query = query.where('attendant', '==', attendant);
+    }
+    
+    if (startDate) {
+      const start = new Date(startDate);
+      query = query.where('createdAt', '>=', start);
+    }
+    
+    if (endDate) {
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      query = query.where('createdAt', '<=', end);
+    }
+    
+    // Order by creation date (newest first) and limit
+    query = query.orderBy('createdAt', 'desc').limit(parseInt(limit));
+    
+    const snapshot = await query.get();
+    let commissions = [];
+    
+    snapshot.forEach(doc => {
+      commissions.push({
+        id: doc.id,
+        ...doc.data()
+      });
+    });
+    
+    
+    res.status(200).json({
+      success: true,
+      message: 'Commissions retrieved successfully',
+      data: commissions,
+      count: commissions.length
+    });
+    
+  } catch (error) {
+    console.error('Error getting commissions:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
+// Delete a commission record
+exports.delete_commission = async (req, res) => {
+  try {
+    const { commissionId } = req.params;
+    
+
+    // Check if commission exists
+    const commissionDoc = await service_db.collection('commissions').doc(commissionId).get();
+    
+    if (!commissionDoc.exists) {
+      return res.status(404).json({
+        success: false,
+        message: 'Commission not found'
+      });
+    }
+
+    // Delete the commission record
+    await service_db.collection('commissions').doc(commissionId).delete();
+    
+    
+    res.status(200).json({
+      success: true,
+      message: 'Commission deleted successfully'
+    });
+    
+  } catch (error) {
+    console.error('Error deleting commission:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
 // Delete a car wash record
 exports.delete_record = async (req, res) => {
   try {
     const { id } = req.params;
+    
+
+    // Debug: List all existing record IDs
+    const allRecordsSnapshot = await service_db.collection('records').get();
+    const existingIds = [];
+    allRecordsSnapshot.forEach(doc => {
+      existingIds.push(doc.id);
+    });
 
     const doc = await service_db.collection('records').doc(id).get();
-
+    
     if (!doc.exists) {
       return res.status(404).json({
         success: false,

@@ -59,6 +59,12 @@ export function CarWashApp() {
       const response = await apiService.addRecord(newRecord);
       if (response.success && response.data) {
         setRecords(prev => [response.data!, ...prev]);
+        
+        // Dispatch custom event to notify other components that a record was added
+        window.dispatchEvent(new CustomEvent('recordAdded', { 
+          detail: { record: response.data } 
+        }));
+        
         toast({
           title: "Record Added",
           description: "Car wash record has been successfully saved.",

@@ -1,4 +1,4 @@
-import { Car, Plus, BarChart3, FileText, Users, User, LogOut } from "lucide-react";
+import { Plus, BarChart3, FileText, Users, User, LogOut } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import {
   Sidebar,
@@ -45,9 +45,6 @@ export function AppSidebar() {
         {/* Header */}
         <div className={`${isCollapsed ? 'p-2' : 'p-4'} border-b`}>
           <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'}`}>
-            <div className={`${isCollapsed ? 'p-1.5' : 'p-2'} bg-gradient-to-r from-primary to-primary-hover rounded-lg`}>
-              <Car className={`${isCollapsed ? 'h-4 w-4' : 'h-6 w-6'} text-primary-foreground`} />
-            </div>
             {!isCollapsed && (
               <div>
                 <h2 className="text-lg font-bold bg-gradient-to-r from-primary to-primary-hover bg-clip-text text-transparent">

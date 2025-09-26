@@ -1,73 +1,115 @@
-# Welcome to your Lovable project
+# Car Wash Management System
 
-## Project info
+A comprehensive car wash management system built with modern web technologies for tracking services, payments, staff commissions, and business analytics.
 
-**URL**: https://lovable.dev/projects/189e2ea0-efa3-4b51-ad3b-87b29c27db01
+## Features
 
-## How can I edit this code?
+- **Service Management**: Track car wash services, vehicle types, and payments
+- **Staff Commission System**: Automatic commission calculation based on daily revenue
+- **Business Analytics**: Comprehensive reporting with profit analysis and performance metrics
+- **Excel Export**: Export monthly data for both services and commissions
+- **Authentication**: Secure login system with JWT tokens
+- **Responsive Design**: Works on desktop and mobile devices
 
-There are several ways of editing your application.
+## Technologies Used
 
-**Use Lovable**
+This project is built with:
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/189e2ea0-efa3-4b51-ad3b-87b29c27db01) and start prompting.
+- **Frontend**: React, TypeScript, Vite
+- **UI Components**: shadcn/ui, Tailwind CSS
+- **Backend**: Node.js, Express.js
+- **Database**: Firebase Firestore
+- **Authentication**: JWT tokens
+- **Export**: Excel (xlsx), PDF (jsPDF)
 
-Changes made via Lovable will be committed automatically to this repo.
+## Getting Started
 
-**Use your preferred IDE**
+### Prerequisites
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+- Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### Installation
 
 Follow these steps:
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
+# Step 1: Clone the repository
 git clone <YOUR_GIT_URL>
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+# Step 2: Navigate to the project directory
+cd car-wash-management-system
 
-# Step 3: Install the necessary dependencies.
+# Step 3: Install frontend dependencies
+cd frontend
 npm i
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Step 4: Install backend dependencies
+cd ../backend
+npm i
+
+# Step 5: Start the development servers
+# Terminal 1 - Backend (from backend directory)
+npm start
+
+# Terminal 2 - Frontend (from frontend directory)
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+### Configuration
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+1. Set up Firebase project and add your configuration to `backend/configs/firebase_db.js`
+2. Update environment variables in `backend/.env`
+3. The application will be available at `http://localhost:8080`
 
-**Use GitHub Codespaces**
+## Project Structure
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+```
+car-wash-management-system/
+├── frontend/          # React frontend application
+│   ├── src/
+│   │   ├── components/ # Reusable UI components
+│   │   ├── pages/     # Page components
+│   │   ├── services/  # API services
+│   │   └── contexts/  # React contexts
+│   └── package.json
+├── backend/           # Express.js backend
+│   ├── controllers/   # Route controllers
+│   ├── middleware/    # Express middleware
+│   ├── routes/        # API routes
+│   └── configs/       # Configuration files
+└── README.md
+```
 
-## What technologies are used for this project?
+## Features Overview
 
-This project is built with:
+### Service Management
+- Add, edit, and delete car wash records
+- Multiple service selection with pricing
+- Daily book concept for clean data entry
+- Payment method tracking
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+### Staff Commission System
+- Automatic commission calculation
+- Dynamic rates based on daily revenue (20% < KSh 6,000, 30% ≥ KSh 6,000)
+- Individual commission records per day
+- Commission deletion and management
 
-## How can I deploy this project?
+### Business Analytics
+- Comprehensive profit analysis
+- Staff performance metrics
+- Service profitability breakdown
+- Monthly projections and trends
+- Excel and PDF export capabilities
 
-Simply open [Lovable](https://lovable.dev/projects/189e2ea0-efa3-4b51-ad3b-87b29c27db01) and click on Share -> Publish.
+## Deployment
 
-## Can I connect a custom domain to my Lovable project?
+This application can be deployed to any hosting platform that supports Node.js applications. Make sure to:
 
-Yes, you can!
+1. Set up your production database (Firebase)
+2. Configure environment variables
+3. Build the frontend: `npm run build`
+4. Start the backend server
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## License
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+This project is private and proprietary.

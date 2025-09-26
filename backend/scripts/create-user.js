@@ -3,7 +3,6 @@ const { admin, realtime_db } = require('../configs/firebase_db');
 // Script to manually create a user in Firebase Authentication
 async function createUser(email, password, name, role = 'user') {
   try {
-    console.log('Creating user in Firebase Authentication:', email);
     
     // Create user in Firebase Authentication
     const userRecord = await admin.auth().createUser({
@@ -13,7 +12,7 @@ async function createUser(email, password, name, role = 'user') {
       emailVerified: true
     });
 
-    console.log('User created in Firebase Auth successfully!');
+    console.log('User created successfully!');
     console.log('Firebase UID:', userRecord.uid);
     console.log('Email:', email);
     console.log('Name:', userRecord.displayName);
@@ -36,7 +35,6 @@ async function createUser(email, password, name, role = 'user') {
 
   } catch (error) {
     if (error.code === 'auth/email-already-exists') {
-      console.log('User already exists in Firebase Authentication!');
     } else {
       console.error('Error creating user:', error);
     }

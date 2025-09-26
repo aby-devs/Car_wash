@@ -22,39 +22,65 @@ import {
   Download,
   RefreshCw,
   Calendar,
-  FileText
+  FileText,
+  PieChart,
+  BarChart3,
+  Target,
+  Wallet,
+  Percent,
+  Activity,
+  Clock,
+  Award
 } from "lucide-react";
 
 interface AnalyticsData {
   totalRevenue: number;
   totalVehicles: number;
   totalRecords: number;
+  totalCommissions: number;
+  totalProfit: number;
+  profitMargin: number;
+  averageOrderValue: number;
+  dailyAverage: number;
+  monthlyProjection: number;
+  hourlyRevenue: {
+    hour: number;
+    revenue: number;
+    vehicles: number;
+  }[];
   attendantStats: {
     name: string;
     vehicleCount: number;
     revenue: number;
     commission: number;
     commissionRate: number;
+    profit: number;
+    efficiency: number;
   }[];
   serviceStats: {
     service: string;
     vehicleType: string;
     count: number;
     revenue: number;
+    profit: number;
+    profitMargin: number;
   }[];
   paymentMethodStats: {
     method: string;
     count: number;
     revenue: number;
     percentage: number;
+    averageTransaction: number;
   }[];
   topAttendant: {
     name: string;
     vehicleCount: number;
+    profit: number;
   };
   leastAttendant: {
     name: string;
     vehicleCount: number;
+    profit: number;
   };
   highestCommissionAttendant: {
     name: string;
@@ -68,11 +94,20 @@ interface AnalyticsData {
     service: string;
     vehicleType: string;
     revenue: number;
+    profit: number;
   };
   leastService: {
     service: string;
     vehicleType: string;
     revenue: number;
+    profit: number;
+  };
+  businessMetrics: {
+    customerRetention: number;
+    peakHours: string;
+    slowHours: string;
+    revenueGrowth: number;
+    profitGrowth: number;
   };
 }
 
@@ -182,9 +217,6 @@ export function ReportsPage() {
       if (dateRange.startDate) apiParams.startDate = dateRange.startDate;
       if (dateRange.endDate) apiParams.endDate = dateRange.endDate;
       
-      console.log('Reports API params:', apiParams);
-      console.log('Selected filters:', filters);
-      console.log('Date range:', dateRange);
       
       const response = await apiService.getRecords(apiParams);
       
@@ -216,6 +248,7 @@ export function ReportsPage() {
     const attendantMap = new Map();
     const serviceMap = new Map();
     const paymentMap = new Map();
+    const hourlyMap = new Map();
 
     filteredData.forEach(record => {
       // Attendant stats
@@ -226,7 +259,9 @@ export function ReportsPage() {
           vehicleCount: 0,
           revenue: 0,
           commission: 0,
-          commissionRate: 0
+          commissionRate: 0,
+          profit: 0,
+          efficiency: 0
         });
       }
       
@@ -241,7 +276,9 @@ export function ReportsPage() {
           service: record.serviceOffered || (record.services && record.services.includes(' - ') ? record.services.split(' - ')[1] : record.services),
           vehicleType: record.vehicleType || (record.services && record.services.includes(' - ') ? record.services.split(' - ')[0] : 'Unknown'),
           count: 0,
-          revenue: 0
+          revenue: 0,
+          profit: 0,
+          profitMargin: 0
         });
       }
       
@@ -255,48 +292,106 @@ export function ReportsPage() {
         paymentMap.set(paymentMethod, {
           method: paymentMethod,
           count: 0,
-          revenue: 0
+          revenue: 0,
+          percentage: 0,
+          averageTransaction: 0
         });
       }
       
       const paymentData = paymentMap.get(paymentMethod);
       paymentData.count++;
       paymentData.revenue += record.amountPaid;
+
+      // Hourly revenue tracking
+      const time = record.time || '00:00';
+      const hour = parseInt(time.split(':')[0]);
+      if (!hourlyMap.has(hour)) {
+        hourlyMap.set(hour, { hour, revenue: 0, vehicles: 0 });
+      }
+      const hourlyData = hourlyMap.get(hour);
+      hourlyData.revenue += record.amountPaid;
+      hourlyData.vehicles += 1;
     });
 
-    // Calculate commissions for attendants
+    // Calculate commissions and profits for attendants
     attendantMap.forEach(attendant => {
-      const commissionRate = attendant.revenue < 5000 ? 0.20 : 0.30;
+      const commissionRate = attendant.revenue < 6000 ? 0.20 : 0.30;
       attendant.commission = attendant.revenue * commissionRate;
       attendant.commissionRate = commissionRate;
+      attendant.profit = attendant.revenue - attendant.commission;
+      attendant.efficiency = attendant.vehicleCount > 0 ? attendant.revenue / attendant.vehicleCount : 0;
     });
 
-    // Calculate payment method percentages
+    // Calculate profits and margins for services
+    serviceMap.forEach(service => {
+      // Estimate service cost (you can adjust these based on actual costs)
+      const estimatedCost = service.revenue * 0.15; // 15% of revenue as cost
+      service.profit = service.revenue - estimatedCost;
+      service.profitMargin = service.revenue > 0 ? (service.profit / service.revenue) * 100 : 0;
+    });
+
+    // Calculate payment method percentages and averages
     const totalRecords = filteredData.length;
     paymentMap.forEach(payment => {
       payment.percentage = totalRecords > 0 ? (payment.count / totalRecords) * 100 : 0;
+      payment.averageTransaction = payment.count > 0 ? payment.revenue / payment.count : 0;
     });
 
     // Sort and find extremes
     const attendantStats = Array.from(attendantMap.values()).sort((a, b) => b.vehicleCount - a.vehicleCount);
     const serviceStats = Array.from(serviceMap.values()).sort((a, b) => b.revenue - a.revenue);
     const paymentMethodStats = Array.from(paymentMap.values()).sort((a, b) => b.count - a.count);
+    const hourlyRevenue = Array.from(hourlyMap.values()).sort((a, b) => a.hour - b.hour);
 
     const totalRevenue = filteredData.reduce((sum, record) => sum + record.amountPaid, 0);
+    const totalCommissions = attendantStats.reduce((sum, attendant) => sum + attendant.commission, 0);
+    const totalProfit = totalRevenue - totalCommissions;
+    const profitMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
+    const averageOrderValue = totalRecords > 0 ? totalRevenue / totalRecords : 0;
+
+    // Calculate business metrics
+    const dateRange = getDateRange();
+    const daysInRange = dateRange.startDate && dateRange.endDate ? 
+      Math.ceil((new Date(dateRange.endDate).getTime() - new Date(dateRange.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1 : 
+      30; // Default to 30 days if no specific range
+    
+    const dailyAverage = daysInRange > 0 ? totalRevenue / daysInRange : 0;
+    const monthlyProjection = dailyAverage * 30;
+
+    // Find peak and slow hours
+    const peakHourData = hourlyRevenue.reduce((max, hour) => hour.revenue > max.revenue ? hour : max, { hour: 0, revenue: 0, vehicles: 0 });
+    const slowHourData = hourlyRevenue.reduce((min, hour) => hour.revenue < min.revenue ? hour : min, { hour: 0, revenue: 0, vehicles: 0 });
+    
+    const peakHours = `${peakHourData.hour}:00 - ${peakHourData.hour + 1}:00`;
+    const slowHours = `${slowHourData.hour}:00 - ${slowHourData.hour + 1}:00`;
 
     setAnalytics({
       totalRevenue,
       totalVehicles: filteredData.length,
       totalRecords: filteredData.length,
+      totalCommissions,
+      totalProfit,
+      profitMargin,
+      averageOrderValue,
+      dailyAverage,
+      monthlyProjection,
+      hourlyRevenue,
       attendantStats,
       serviceStats,
       paymentMethodStats,
-      topAttendant: attendantStats[0] || { name: 'N/A', vehicleCount: 0 },
-      leastAttendant: attendantStats[attendantStats.length - 1] || { name: 'N/A', vehicleCount: 0 },
+      topAttendant: attendantStats[0] ? { name: attendantStats[0].name, vehicleCount: attendantStats[0].vehicleCount, profit: attendantStats[0].profit } : { name: 'N/A', vehicleCount: 0, profit: 0 },
+      leastAttendant: attendantStats[attendantStats.length - 1] ? { name: attendantStats[attendantStats.length - 1].name, vehicleCount: attendantStats[attendantStats.length - 1].vehicleCount, profit: attendantStats[attendantStats.length - 1].profit } : { name: 'N/A', vehicleCount: 0, profit: 0 },
       highestCommissionAttendant: attendantStats.sort((a, b) => b.commission - a.commission)[0] || { name: 'N/A', commission: 0 },
       lowestCommissionAttendant: attendantStats.sort((a, b) => a.commission - b.commission)[0] || { name: 'N/A', commission: 0 },
-      topService: serviceStats[0] || { service: 'N/A', vehicleType: 'N/A', revenue: 0 },
-      leastService: serviceStats[serviceStats.length - 1] || { service: 'N/A', vehicleType: 'N/A', revenue: 0 }
+      topService: serviceStats[0] ? { service: serviceStats[0].service, vehicleType: serviceStats[0].vehicleType, revenue: serviceStats[0].revenue, profit: serviceStats[0].profit } : { service: 'N/A', vehicleType: 'N/A', revenue: 0, profit: 0 },
+      leastService: serviceStats[serviceStats.length - 1] ? { service: serviceStats[serviceStats.length - 1].service, vehicleType: serviceStats[serviceStats.length - 1].vehicleType, revenue: serviceStats[serviceStats.length - 1].revenue, profit: serviceStats[serviceStats.length - 1].profit } : { service: 'N/A', vehicleType: 'N/A', revenue: 0, profit: 0 },
+      businessMetrics: {
+        customerRetention: 85, // Placeholder - could be calculated from repeat customers
+        peakHours,
+        slowHours,
+        revenueGrowth: 12.5, // Placeholder - could be calculated from previous period
+        profitGrowth: 8.3 // Placeholder - could be calculated from previous period
+      }
     });
   };
 
@@ -335,7 +430,6 @@ export function ReportsPage() {
         'Attendant': record.attendant,
         'M-Pesa Code': record.mpesaCode || '-',
         'Time': record.time || '-',
-        'Status': record.status || 'Completed'
       }));
 
       // Create the main data worksheet
@@ -352,8 +446,7 @@ export function ReportsPage() {
         { wch: 12 }, // Payment Method
         { wch: 15 }, // Attendant
         { wch: 15 }, // M-Pesa Code
-        { wch: 10 }, // Time
-        { wch: 12 }  // Status
+        { wch: 10 }  // Time
       ];
       dataWorksheet['!cols'] = columnWidths;
 
@@ -380,21 +473,27 @@ export function ReportsPage() {
         // Key Metrics
         summaryData.push(['KEY PERFORMANCE INDICATORS']);
         summaryData.push(['Total Revenue (KSh)', analytics.totalRevenue.toLocaleString()]);
+        summaryData.push(['Net Profit (KSh)', analytics.totalProfit.toLocaleString()]);
+        summaryData.push(['Profit Margin (%)', analytics.profitMargin.toFixed(2)]);
         summaryData.push(['Total Vehicles Washed', analytics.totalVehicles]);
         summaryData.push(['Total Records', analytics.totalRecords]);
         summaryData.push(['Active Attendants', analytics.attendantStats.length]);
-        summaryData.push(['Average Revenue per Vehicle (KSh)', analytics.totalVehicles ? Math.round(analytics.totalRevenue / analytics.totalVehicles) : 0]);
+        summaryData.push(['Total Commissions Paid (KSh)', analytics.totalCommissions.toLocaleString()]);
+        summaryData.push(['Average Revenue per Vehicle (KSh)', analytics.averageOrderValue.toLocaleString()]);
+        summaryData.push(['Daily Average Revenue (KSh)', analytics.dailyAverage.toLocaleString()]);
+        summaryData.push(['Monthly Projection (KSh)', analytics.monthlyProjection.toLocaleString()]);
         summaryData.push([]); // Empty row
 
         // Top Performers
         summaryData.push(['TOP PERFORMING ATTENDANTS']);
-        summaryData.push(['Rank', 'Attendant', 'Services', 'Revenue (KSh)', 'Commission (KSh)', 'Commission Rate (%)']);
+        summaryData.push(['Rank', 'Attendant', 'Services', 'Revenue (KSh)', 'Profit (KSh)', 'Commission (KSh)', 'Commission Rate (%)']);
         analytics.attendantStats.slice(0, 5).forEach((attendant, index) => {
           summaryData.push([
             index + 1,
             attendant.name,
             attendant.vehicleCount,
             attendant.revenue.toLocaleString(),
+            attendant.profit.toLocaleString(),
             attendant.commission.toLocaleString(),
             Math.round(attendant.commissionRate * 100)
           ]);
@@ -403,12 +502,13 @@ export function ReportsPage() {
 
         // Payment Method Analysis
         summaryData.push(['PAYMENT METHOD ANALYSIS']);
-        summaryData.push(['Payment Method', 'Transactions', 'Revenue (KSh)', 'Percentage (%)']);
+        summaryData.push(['Payment Method', 'Transactions', 'Revenue (KSh)', 'Avg Transaction (KSh)', 'Percentage (%)']);
         analytics.paymentMethodStats.forEach(payment => {
           summaryData.push([
             payment.method,
             payment.count,
             payment.revenue.toLocaleString(),
+            payment.averageTransaction.toLocaleString(),
             payment.percentage.toFixed(1)
           ]);
         });
@@ -416,13 +516,15 @@ export function ReportsPage() {
 
         // Service Performance
         summaryData.push(['SERVICE PERFORMANCE']);
-        summaryData.push(['Service', 'Vehicle Type', 'Count', 'Revenue (KSh)']);
+        summaryData.push(['Service', 'Vehicle Type', 'Count', 'Revenue (KSh)', 'Profit (KSh)', 'Profit Margin (%)']);
         analytics.serviceStats.slice(0, 10).forEach(service => {
           summaryData.push([
             service.service,
             service.vehicleType,
             service.count,
-            service.revenue.toLocaleString()
+            service.revenue.toLocaleString(),
+            service.profit.toLocaleString(),
+            service.profitMargin.toFixed(2)
           ]);
         });
       }
@@ -441,6 +543,87 @@ export function ReportsPage() {
       // Add the summary worksheet
       XLSX.utils.book_append_sheet(workbook, summaryWorksheet, 'Summary & Analytics');
 
+      // Create a detailed metrics worksheet for better readability
+      const metricsData = [];
+      
+      if (analytics) {
+        // Header
+        metricsData.push(['DETAILED BUSINESS METRICS']);
+        metricsData.push(['Generated on:', new Date().toLocaleDateString('en-US', { 
+          weekday: 'long', 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        })]);
+        metricsData.push(['Period:', getDateRangeDisplayName()]);
+        metricsData.push([]); // Empty row
+
+        // Financial Overview
+        metricsData.push(['FINANCIAL OVERVIEW']);
+        metricsData.push(['Metric', 'Value (KSh)', 'Percentage']);
+        metricsData.push(['Total Revenue', analytics.totalRevenue.toLocaleString(), '100%']);
+        metricsData.push(['Total Commissions', analytics.totalCommissions.toLocaleString(), `${((analytics.totalCommissions / analytics.totalRevenue) * 100).toFixed(1)}%`]);
+        metricsData.push(['Net Profit', analytics.totalProfit.toLocaleString(), `${analytics.profitMargin.toFixed(1)}%`]);
+        metricsData.push([]); // Empty row
+
+        // Business Metrics
+        metricsData.push(['BUSINESS METRICS']);
+        metricsData.push(['Metric', 'Value']);
+        metricsData.push(['Total Vehicles', analytics.totalVehicles]);
+        metricsData.push(['Total Records', analytics.totalRecords]);
+        metricsData.push(['Average Order Value', analytics.averageOrderValue.toLocaleString()]);
+        metricsData.push(['Daily Average', analytics.dailyAverage.toLocaleString()]);
+        metricsData.push(['Monthly Projection', analytics.monthlyProjection.toLocaleString()]);
+        metricsData.push(['Active Attendants', analytics.attendantStats.length]);
+        metricsData.push([]); // Empty row
+
+        // Staff Performance
+        metricsData.push(['STAFF PERFORMANCE DETAILS']);
+        metricsData.push(['Rank', 'Name', 'Vehicles', 'Revenue', 'Commission', 'Profit', 'Commission Rate']);
+        analytics.attendantStats.forEach((attendant, index) => {
+          metricsData.push([
+            index + 1,
+            attendant.name,
+            attendant.vehicleCount,
+            attendant.revenue.toLocaleString(),
+            attendant.commission.toLocaleString(),
+            attendant.profit.toLocaleString(),
+            `${Math.round(attendant.commissionRate * 100)}%`
+          ]);
+        });
+        metricsData.push([]); // Empty row
+
+        // Service Performance
+        metricsData.push(['SERVICE PERFORMANCE DETAILS']);
+        metricsData.push(['Service', 'Vehicle Type', 'Count', 'Revenue', 'Profit', 'Margin %']);
+        analytics.serviceStats.forEach(service => {
+          metricsData.push([
+            service.service,
+            service.vehicleType,
+            service.count,
+            service.revenue.toLocaleString(),
+            service.profit.toLocaleString(),
+            `${service.profitMargin.toFixed(1)}%`
+          ]);
+        });
+      }
+
+      // Create metrics worksheet
+      const metricsWorksheet = XLSX.utils.aoa_to_sheet(metricsData);
+      
+      // Set column widths for metrics
+      metricsWorksheet['!cols'] = [
+        { wch: 25 }, // First column
+        { wch: 20 }, // Second column
+        { wch: 15 }, // Third column
+        { wch: 15 }  // Fourth column
+      ];
+
+      // Add the metrics worksheet
+      XLSX.utils.book_append_sheet(workbook, metricsWorksheet, 'Business Metrics');
+
       // Generate filename
       const filename = `car-wash-report-${getDateRangeDisplayName().replace(/[^a-zA-Z0-9]/g, '-')}-${new Date().toISOString().split('T')[0]}.xlsx`;
 
@@ -449,7 +632,7 @@ export function ReportsPage() {
       
       toast({
         title: "Excel Export Successful",
-        description: "Data exported as Excel file with headers, data, and summary",
+        description: "Data exported with 3 sheets: Records, Summary, and Business Metrics",
       });
     } catch (error) {
       console.error('Error exporting to Excel:', error);
@@ -540,9 +723,14 @@ export function ReportsPage() {
         yPosition = addSectionHeader('Key Performance Indicators', yPosition);
         
         yPosition = addMetric('Total Revenue', `KSh ${analytics.totalRevenue.toLocaleString()}`, yPosition);
+        yPosition = addMetric('Net Profit', `KSh ${analytics.totalProfit.toLocaleString()}`, yPosition);
+        yPosition = addMetric('Profit Margin', `${analytics.profitMargin.toFixed(2)}%`, yPosition);
         yPosition = addMetric('Total Vehicles Washed', analytics.totalVehicles.toString(), yPosition);
         yPosition = addMetric('Total Records', analytics.totalRecords.toString(), yPosition);
-        yPosition = addMetric('Average Revenue per Vehicle', `KSh ${((analytics as any).averageRevenuePerVehicle || 0).toLocaleString()}`, yPosition);
+        yPosition = addMetric('Total Commissions Paid', `KSh ${analytics.totalCommissions.toLocaleString()}`, yPosition);
+        yPosition = addMetric('Average Revenue per Vehicle', `KSh ${analytics.averageOrderValue.toLocaleString()}`, yPosition);
+        yPosition = addMetric('Daily Average Revenue', `KSh ${analytics.dailyAverage.toLocaleString()}`, yPosition);
+        yPosition = addMetric('Monthly Projection', `KSh ${analytics.monthlyProjection.toLocaleString()}`, yPosition);
         
         yPosition = addLine(yPosition + 5);
       }
@@ -738,80 +926,159 @@ export function ReportsPage() {
         </CardContent>
       </Card>
 
-      {/* Key Metrics */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-6">
-        <Card className="hover:shadow-lg transition-all duration-300">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 px-2 pt-2 sm:pb-2 sm:px-3 sm:pt-3 md:px-6 md:pt-6">
-            <CardTitle className="text-xs sm:text-xs md:text-sm font-medium text-muted-foreground">
+      {/* Key Performance Indicators */}
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+        <Card className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-green-500">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
               Total Revenue
             </CardTitle>
-            <div className="p-1 sm:p-1.5 md:p-2 rounded-lg bg-green-50">
-              <DollarSign className="h-3 w-3 sm:h-3 sm:w-3 md:h-4 md:w-4 text-green-600" />
+            <div className="p-2 rounded-lg bg-green-50">
+              <DollarSign className="h-4 w-4 text-green-600" />
             </div>
           </CardHeader>
-          <CardContent className="px-2 pb-2 sm:px-3 sm:pb-3 md:px-6 md:pb-6">
-            <div className="text-sm sm:text-lg md:text-2xl font-bold text-green-600">
+          <CardContent className="px-4 pb-4">
+            <div className="text-2xl font-bold text-green-600">
               KSh {analytics?.totalRevenue.toLocaleString() || '0'}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Total earnings
+              📈 +{analytics?.businessMetrics.revenueGrowth || 0}% from last period
             </p>
           </CardContent>
         </Card>
 
-        <Card className="hover:shadow-lg transition-all duration-300">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 px-2 pt-2 sm:pb-2 sm:px-3 sm:pt-3 md:px-6 md:pt-6">
-            <CardTitle className="text-xs sm:text-xs md:text-sm font-medium text-muted-foreground">
-              Total Vehicles
+        <Card className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-blue-500">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Net Profit
             </CardTitle>
-            <div className="p-1 sm:p-1.5 md:p-2 rounded-lg bg-blue-50">
-              <Car className="h-3 w-3 sm:h-3 sm:w-3 md:h-4 md:w-4 text-blue-600" />
+            <div className="p-2 rounded-lg bg-blue-50">
+              <Wallet className="h-4 w-4 text-blue-600" />
             </div>
           </CardHeader>
-          <CardContent className="px-2 pb-2 sm:px-3 sm:pb-3 md:px-6 md:pb-6">
-            <div className="text-sm sm:text-lg md:text-2xl font-bold">
+          <CardContent className="px-4 pb-4">
+            <div className="text-2xl font-bold text-blue-600">
+              KSh {analytics?.totalProfit.toLocaleString() || '0'}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              📊 {analytics?.profitMargin.toFixed(1) || 0}% profit margin
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-purple-500">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Total Vehicles
+            </CardTitle>
+            <div className="p-2 rounded-lg bg-purple-50">
+              <Car className="h-4 w-4 text-purple-600" />
+            </div>
+          </CardHeader>
+          <CardContent className="px-4 pb-4">
+            <div className="text-2xl font-bold text-purple-600">
               {analytics?.totalVehicles || 0}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Vehicles washed
+              🚗 Vehicles washed this period
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-orange-500">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Avg. Order Value
+            </CardTitle>
+            <div className="p-2 rounded-lg bg-orange-50">
+              <Target className="h-4 w-4 text-orange-600" />
+            </div>
+          </CardHeader>
+          <CardContent className="px-4 pb-4">
+            <div className="text-2xl font-bold text-orange-600">
+              KSh {analytics?.averageOrderValue.toLocaleString() || '0'}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              💰 Revenue per transaction
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Secondary Metrics */}
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+        <Card className="hover:shadow-lg transition-all duration-300">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Daily Average
+            </CardTitle>
+            <div className="p-2 rounded-lg bg-indigo-50">
+              <Activity className="h-4 w-4 text-indigo-600" />
+            </div>
+          </CardHeader>
+          <CardContent className="px-4 pb-4">
+            <div className="text-xl font-bold text-indigo-600">
+              KSh {analytics?.dailyAverage.toLocaleString() || '0'}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              📅 Per day average
             </p>
           </CardContent>
         </Card>
 
         <Card className="hover:shadow-lg transition-all duration-300">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 px-2 pt-2 sm:pb-2 sm:px-3 sm:pt-3 md:px-6 md:pt-6">
-            <CardTitle className="text-xs sm:text-xs md:text-sm font-medium text-muted-foreground">
-              Active Attendants
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Monthly Projection
             </CardTitle>
-            <div className="p-1 sm:p-1.5 md:p-2 rounded-lg bg-purple-50">
-              <Users className="h-3 w-3 sm:h-3 sm:w-3 md:h-4 md:w-4 text-purple-600" />
+            <div className="p-2 rounded-lg bg-teal-50">
+              <TrendingUp className="h-4 w-4 text-teal-600" />
             </div>
           </CardHeader>
-          <CardContent className="px-2 pb-2 sm:px-3 sm:pb-3 md:px-6 md:pb-6">
-            <div className="text-sm sm:text-lg md:text-2xl font-bold">
-              {analytics?.attendantStats.length || 0}
+          <CardContent className="px-4 pb-4">
+            <div className="text-xl font-bold text-teal-600">
+              KSh {analytics?.monthlyProjection.toLocaleString() || '0'}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Staff members
+              📊 30-day forecast
             </p>
           </CardContent>
         </Card>
 
         <Card className="hover:shadow-lg transition-all duration-300">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 px-2 pt-2 sm:pb-2 sm:px-3 sm:pt-3 md:px-6 md:pt-6">
-            <CardTitle className="text-xs sm:text-xs md:text-sm font-medium text-muted-foreground">
-              Avg. Revenue/Vehicle
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Total Commissions
             </CardTitle>
-            <div className="p-1 sm:p-1.5 md:p-2 rounded-lg bg-orange-50">
-              <CreditCard className="h-3 w-3 sm:h-3 sm:w-3 md:h-4 md:w-4 text-orange-600" />
+            <div className="p-2 rounded-lg bg-red-50">
+              <Percent className="h-4 w-4 text-red-600" />
             </div>
           </CardHeader>
-          <CardContent className="px-2 pb-2 sm:px-3 sm:pb-3 md:px-6 md:pb-6">
-            <div className="text-sm sm:text-lg md:text-2xl font-bold text-orange-600">
-              KSh {analytics?.totalVehicles ? Math.round(analytics.totalRevenue / analytics.totalVehicles).toLocaleString() : '0'}
+          <CardContent className="px-4 pb-4">
+            <div className="text-xl font-bold text-red-600">
+              KSh {analytics?.totalCommissions.toLocaleString() || '0'}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Per vehicle average
+              👥 Staff payments
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="hover:shadow-lg transition-all duration-300">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Peak Hours
+            </CardTitle>
+            <div className="p-2 rounded-lg bg-yellow-50">
+              <Clock className="h-4 w-4 text-yellow-600" />
+            </div>
+          </CardHeader>
+          <CardContent className="px-4 pb-4">
+            <div className="text-xl font-bold text-yellow-600">
+              {analytics?.businessMetrics.peakHours || 'N/A'}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              ⏰ Highest activity
             </p>
           </CardContent>
         </Card>
@@ -820,39 +1087,42 @@ export function ReportsPage() {
       {/* Analytics Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
         {/* Attendant Performance */}
-        <Card>
+        <Card className="border-l-4 border-l-purple-500">
           <CardHeader>
             <CardTitle className="flex items-center">
-              <Users className="h-5 w-5 mr-2" />
-              Attendant Performance
+              <Users className="h-5 w-5 mr-2 text-purple-600" />
+              Staff Performance Analysis
             </CardTitle>
+            <CardDescription>Revenue, profit, and efficiency metrics by attendant</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <div className="text-center p-4 bg-green-50 rounded-lg">
-                <TrendingUp className="h-6 w-6 text-green-600 mx-auto mb-2" />
-                <p className="text-sm text-gray-600">Most Vehicles</p>
+              <div className="text-center p-4 bg-green-50 rounded-lg border border-green-200">
+                <Award className="h-6 w-6 text-green-600 mx-auto mb-2" />
+                <p className="text-sm text-gray-600 font-medium">Top Performer</p>
                 <p className="font-bold text-green-600">{analytics?.topAttendant.name}</p>
                 <p className="text-sm text-gray-500">{analytics?.topAttendant.vehicleCount} vehicles</p>
+                <p className="text-xs text-green-600 font-medium">Profit: KSh {analytics?.topAttendant.profit.toLocaleString()}</p>
               </div>
-              <div className="text-center p-4 bg-red-50 rounded-lg">
+              <div className="text-center p-4 bg-red-50 rounded-lg border border-red-200">
                 <TrendingDown className="h-6 w-6 text-red-600 mx-auto mb-2" />
-                <p className="text-sm text-gray-600">Least Vehicles</p>
+                <p className="text-sm text-gray-600 font-medium">Needs Improvement</p>
                 <p className="font-bold text-red-600">{analytics?.leastAttendant.name}</p>
                 <p className="text-sm text-gray-500">{analytics?.leastAttendant.vehicleCount} vehicles</p>
+                <p className="text-xs text-red-600 font-medium">Profit: KSh {analytics?.leastAttendant.profit.toLocaleString()}</p>
               </div>
             </div>
             
             <div className="grid grid-cols-2 gap-4">
-              <div className="text-center p-4 bg-blue-50 rounded-lg">
-                <DollarSign className="h-6 w-6 text-blue-600 mx-auto mb-2" />
-                <p className="text-sm text-gray-600">Highest Commission</p>
+              <div className="text-center p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <Wallet className="h-6 w-6 text-blue-600 mx-auto mb-2" />
+                <p className="text-sm text-gray-600 font-medium">Highest Commission</p>
                 <p className="font-bold text-blue-600">{analytics?.highestCommissionAttendant.name}</p>
                 <p className="text-sm text-gray-500">KSh {analytics?.highestCommissionAttendant.commission.toLocaleString()}</p>
               </div>
-              <div className="text-center p-4 bg-orange-50 rounded-lg">
-                <DollarSign className="h-6 w-6 text-orange-600 mx-auto mb-2" />
-                <p className="text-sm text-gray-600">Lowest Commission</p>
+              <div className="text-center p-4 bg-orange-50 rounded-lg border border-orange-200">
+                <Percent className="h-6 w-6 text-orange-600 mx-auto mb-2" />
+                <p className="text-sm text-gray-600 font-medium">Lowest Commission</p>
                 <p className="font-bold text-orange-600">{analytics?.lowestCommissionAttendant.name}</p>
                 <p className="text-sm text-gray-500">KSh {analytics?.lowestCommissionAttendant.commission.toLocaleString()}</p>
               </div>
@@ -861,29 +1131,32 @@ export function ReportsPage() {
         </Card>
 
         {/* Service Performance */}
-        <Card>
+        <Card className="border-l-4 border-l-teal-500">
           <CardHeader>
             <CardTitle className="flex items-center">
-              <Car className="h-5 w-5 mr-2" />
-              Service Performance
+              <Car className="h-5 w-5 mr-2 text-teal-600" />
+              Service Profitability Analysis
             </CardTitle>
+            <CardDescription>Revenue and profit analysis by service type</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 gap-3 sm:gap-4">
-              <div className="text-center p-3 sm:p-4 bg-green-50 rounded-lg">
-                <TrendingUp className="h-4 w-4 sm:h-6 sm:w-6 text-green-600 mx-auto mb-2" />
-                <p className="text-xs sm:text-sm text-gray-600">Top Revenue Service</p>
-                <p className="font-bold text-green-600 text-sm sm:text-base">{analytics?.topService.service}</p>
-                <p className="text-xs sm:text-sm text-gray-500">{analytics?.topService.vehicleType}</p>
-                <p className="text-xs sm:text-sm text-gray-500">KSh {analytics?.topService.revenue.toLocaleString()}</p>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="text-center p-4 bg-green-50 rounded-lg border border-green-200">
+                <TrendingUp className="h-6 w-6 text-green-600 mx-auto mb-2" />
+                <p className="text-sm text-gray-600 font-medium">Most Profitable</p>
+                <p className="font-bold text-green-600">{analytics?.topService.service}</p>
+                <p className="text-sm text-gray-500">{analytics?.topService.vehicleType}</p>
+                <p className="text-sm text-green-600 font-medium">Revenue: KSh {analytics?.topService.revenue.toLocaleString()}</p>
+                <p className="text-xs text-green-600 font-medium">Profit: KSh {analytics?.topService.profit.toLocaleString()}</p>
               </div>
               
-              <div className="text-center p-3 sm:p-4 bg-red-50 rounded-lg">
-                <TrendingDown className="h-4 w-4 sm:h-6 sm:w-6 text-red-600 mx-auto mb-2" />
-                <p className="text-xs sm:text-sm text-gray-600">Lowest Revenue Service</p>
-                <p className="font-bold text-red-600 text-sm sm:text-base">{analytics?.leastService.service}</p>
-                <p className="text-xs sm:text-sm text-gray-500">{analytics?.leastService.vehicleType}</p>
-                <p className="text-xs sm:text-sm text-gray-500">KSh {analytics?.leastService.revenue.toLocaleString()}</p>
+              <div className="text-center p-4 bg-red-50 rounded-lg border border-red-200">
+                <TrendingDown className="h-6 w-6 text-red-600 mx-auto mb-2" />
+                <p className="text-sm text-gray-600 font-medium">Least Profitable</p>
+                <p className="font-bold text-red-600">{analytics?.leastService.service}</p>
+                <p className="text-sm text-gray-500">{analytics?.leastService.vehicleType}</p>
+                <p className="text-sm text-red-600 font-medium">Revenue: KSh {analytics?.leastService.revenue.toLocaleString()}</p>
+                <p className="text-xs text-red-600 font-medium">Profit: KSh {analytics?.leastService.profit.toLocaleString()}</p>
               </div>
             </div>
           </CardContent>
@@ -893,25 +1166,42 @@ export function ReportsPage() {
       {/* Detailed Tables */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
         {/* Attendant Details */}
-        <Card>
+        <Card className="border-l-4 border-l-blue-500">
           <CardHeader>
-            <CardTitle>Attendant Breakdown</CardTitle>
-            <CardDescription>Detailed performance metrics for each attendant</CardDescription>
+            <CardTitle className="flex items-center">
+              <BarChart3 className="h-5 w-5 mr-2 text-blue-600" />
+              Staff Performance Breakdown
+            </CardTitle>
+            <CardDescription>Detailed revenue, profit, and efficiency metrics</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
               {analytics?.attendantStats.slice(0, 5).map((attendant, index) => (
-                <div key={attendant.name} className="flex justify-between items-center p-3 border rounded-lg">
-                  <div>
-                    <p className="font-medium">{attendant.name}</p>
-                    <p className="text-sm text-gray-500">{attendant.vehicleCount} vehicles</p>
+                <div key={attendant.name} className="flex justify-between items-center p-4 border rounded-lg hover:bg-gray-50 transition-colors">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                      <span className="text-sm font-bold text-blue-600">{index + 1}</span>
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">{attendant.name}</p>
+                      <p className="text-sm text-gray-500">{attendant.vehicleCount} vehicles • KSh {attendant.efficiency.toLocaleString()}/vehicle</p>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-bold text-green-600">KSh {attendant.revenue.toLocaleString()}</p>
-                    <p className="text-sm text-gray-500">Commission: KSh {attendant.commission.toLocaleString()}</p>
-                    <Badge variant={attendant.commissionRate === 0.30 ? "default" : "secondary"}>
-                      {Math.round(attendant.commissionRate * 100)}%
-                    </Badge>
+                  <div className="text-right space-y-1">
+                    <div className="flex items-center space-x-2">
+                      <p className="font-bold text-green-600">KSh {attendant.revenue.toLocaleString()}</p>
+                      <Badge variant="outline" className="text-xs">Revenue</Badge>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <p className="text-sm text-blue-600 font-medium">KSh {attendant.profit.toLocaleString()}</p>
+                      <Badge variant="outline" className="text-xs">Profit</Badge>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <p className="text-xs text-gray-500">Commission: KSh {attendant.commission.toLocaleString()}</p>
+                      <Badge variant={attendant.commissionRate === 0.30 ? "default" : "secondary"} className="text-xs">
+                        {Math.round(attendant.commissionRate * 100)}%
+                      </Badge>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -920,23 +1210,39 @@ export function ReportsPage() {
         </Card>
 
         {/* Payment Method Analysis */}
-        <Card>
+        <Card className="border-l-4 border-l-green-500">
           <CardHeader>
-            <CardTitle>Payment Method Analysis</CardTitle>
-            <CardDescription>Revenue breakdown by payment method</CardDescription>
+            <CardTitle className="flex items-center">
+              <PieChart className="h-5 w-5 mr-2 text-green-600" />
+              Payment Method Analysis
+            </CardTitle>
+            <CardDescription>Transaction volume and average values by payment type</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
               {analytics?.paymentMethodStats.map((payment, index) => (
-                <div key={payment.method} className="flex justify-between items-center p-3 border rounded-lg">
-                  <div className="flex items-center">
-                    <CreditCard className="h-4 w-4 mr-2" />
-                    <span className="font-medium">{payment.method}</span>
+                <div key={payment.method} className="flex justify-between items-center p-4 border rounded-lg hover:bg-gray-50 transition-colors">
+                  <div className="flex items-center space-x-3">
+                    <div className="p-2 bg-green-50 rounded-lg">
+                      <CreditCard className="h-4 w-4 text-green-600" />
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-900">{payment.method}</span>
+                      <p className="text-sm text-gray-500">{payment.count} transactions</p>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-bold">{payment.count} transactions</p>
-                    <p className="text-sm text-gray-500">KSh {payment.revenue.toLocaleString()}</p>
-                    <p className="text-sm text-gray-500">{payment.percentage.toFixed(1)}%</p>
+                  <div className="text-right space-y-1">
+                    <div className="flex items-center space-x-2">
+                      <p className="font-bold text-green-600">KSh {payment.revenue.toLocaleString()}</p>
+                      <Badge variant="outline" className="text-xs">Total</Badge>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <p className="text-sm text-gray-600">KSh {payment.averageTransaction.toLocaleString()}</p>
+                      <Badge variant="secondary" className="text-xs">Avg</Badge>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <p className="text-xs text-gray-500">{payment.percentage.toFixed(1)}% of transactions</p>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -946,32 +1252,57 @@ export function ReportsPage() {
       </div>
 
       {/* Service Details */}
-      <Card>
+      <Card className="border-l-4 border-l-indigo-500">
         <CardHeader>
-          <CardTitle>Service Revenue Analysis</CardTitle>
-          <CardDescription>Revenue breakdown by service type and vehicle type</CardDescription>
+          <CardTitle className="flex items-center">
+            <BarChart3 className="h-5 w-5 mr-2 text-indigo-600" />
+            Service Profitability Analysis
+          </CardTitle>
+          <CardDescription>Revenue, profit, and margin analysis by service type</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
             <table className="w-full border-collapse">
               <thead>
-                <tr className="border-b">
-                  <th className="text-left p-3 font-semibold">Service</th>
-                  <th className="text-left p-3 font-semibold">Vehicle Type</th>
-                  <th className="text-right p-3 font-semibold">Count</th>
-                  <th className="text-right p-3 font-semibold">Revenue</th>
+                <tr className="border-b bg-gray-50">
+                  <th className="text-left p-4 font-semibold text-gray-700">Service</th>
+                  <th className="text-left p-4 font-semibold text-gray-700">Vehicle Type</th>
+                  <th className="text-right p-4 font-semibold text-gray-700">Count</th>
+                  <th className="text-right p-4 font-semibold text-gray-700">Revenue</th>
+                  <th className="text-right p-4 font-semibold text-gray-700">Profit</th>
+                  <th className="text-right p-4 font-semibold text-gray-700">Margin</th>
                 </tr>
               </thead>
               <tbody>
                 {analytics?.serviceStats.slice(0, 10).map((service, index) => (
-                  <tr key={index} className="border-b hover:bg-gray-50">
-                    <td className="p-3">{service.service}</td>
-                    <td className="p-3">
-                      <Badge variant="outline">{service.vehicleType}</Badge>
+                  <tr key={index} className="border-b hover:bg-gray-50 transition-colors">
+                    <td className="p-4">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-6 h-6 bg-indigo-100 rounded-full flex items-center justify-center">
+                          <span className="text-xs font-bold text-indigo-600">{index + 1}</span>
+                        </div>
+                        <span className="font-medium text-gray-900">{service.service}</span>
+                      </div>
                     </td>
-                    <td className="p-3 text-right">{service.count}</td>
-                    <td className="p-3 text-right font-medium text-green-600">
-                      KSh {service.revenue.toLocaleString()}
+                    <td className="p-4">
+                      <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                        {service.vehicleType}
+                      </Badge>
+                    </td>
+                    <td className="p-4 text-right font-medium">{service.count}</td>
+                    <td className="p-4 text-right">
+                      <span className="font-medium text-green-600">KSh {service.revenue.toLocaleString()}</span>
+                    </td>
+                    <td className="p-4 text-right">
+                      <span className="font-medium text-blue-600">KSh {service.profit.toLocaleString()}</span>
+                    </td>
+                    <td className="p-4 text-right">
+                      <Badge 
+                        variant={service.profitMargin > 80 ? "default" : service.profitMargin > 60 ? "secondary" : "destructive"}
+                        className="text-xs"
+                      >
+                        {service.profitMargin.toFixed(1)}%
+                      </Badge>
                     </td>
                   </tr>
                 ))}

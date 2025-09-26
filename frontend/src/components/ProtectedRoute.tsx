@@ -8,9 +8,10 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, initialized } = useAuth();
 
-  if (loading) {
+  // Show loading spinner while authentication is being checked
+  if (loading || !initialized) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-blue-50">
         <div className="text-center">
@@ -23,6 +24,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     );
   }
 
+  // Only redirect to login if we've finished checking and user is not authenticated
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
