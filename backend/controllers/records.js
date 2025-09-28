@@ -66,15 +66,15 @@ exports.add_record = async (req, res) => {
 
 
     // Validate required fields
-    if (!registrationNumber || !carModel || !services || !amountPaid || !paymentMethod || !attendant) {
+    if (!registrationNumber || !carModel || !services || !attendant) {
       return res.status(400).json({
         success: false,
         message: 'Missing required fields'
       });
     }
 
-    // Validate M-Pesa code if payment method is M-Pesa
-    if (paymentMethod === 'Mpesa' && !mpesaCode) {
+    // Validate M-Pesa code if payment method is M-Pesa and amountPaid > 0
+    if (paymentMethod === 'Mpesa' && amountPaid > 0 && !mpesaCode) {
       return res.status(400).json({
         success: false,
         message: 'M-Pesa transaction code is required for M-Pesa payments'
@@ -93,11 +93,12 @@ exports.add_record = async (req, res) => {
       vehicleType: vehicleType || '', // Store vehicle type
       services: services.trim(),
       serviceOffered: services.trim(), // Also store serviceOffered for compatibility
-      amountPaid: parseFloat(amountPaid),
-      paymentMethod,
+      amountPaid: amountPaid ? parseFloat(amountPaid) : 0,
+      paymentMethod: paymentMethod || 'Cash', // Default to Cash if not provided
       attendant: attendant.trim(),
       date: date || now.toISOString().split('T')[0], // Use provided date or current date in YYYY-MM-DD format
       time: now.toLocaleTimeString(),
+      status: req.body.status || (amountPaid > 0 ? 'completed' : 'active'), // Set status based on payment
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp()
     };
@@ -110,50 +111,8 @@ exports.add_record = async (req, res) => {
     // Save to Firestore using the service order ID as the document ID
     const docRef = await service_db.collection('records').doc(serviceOrderId).set(recordData);
 
-    // Automatically calculate and save commission based on daily revenue
-    try {
-      // Get all records for this attendant on this date to calculate daily revenue
-      const attendantRecordsSnapshot = await service_db.collection('records')
-        .where('attendant', '==', recordData.attendant)
-        .where('date', '==', recordData.date)
-        .get();
-      
-      // Calculate daily revenue including the current record
-      let dailyRevenue = 0;
-      attendantRecordsSnapshot.forEach(doc => {
-        const record = doc.data();
-        dailyRevenue += record.amountPaid;
-      });
-      dailyRevenue += recordData.amountPaid; // Include current record
-      
-      // Determine commission rate based on daily revenue
-      const commissionRate = dailyRevenue >= 6000 ? 30 : 20;
-      const commissionAmount = (recordData.amountPaid * commissionRate) / 100;
-      
-      
-      const commissionData = {
-        recordId: serviceOrderId,
-        attendant: recordData.attendant,
-        registrationNumber: recordData.registrationNumber,
-        carModel: recordData.carModel,
-        vehicleType: recordData.vehicleType,
-        services: recordData.services,
-        serviceOffered: recordData.serviceOffered,
-        amountPaid: recordData.amountPaid,
-        commissionAmount: commissionAmount,
-        commissionRate: commissionRate,
-        dailyRevenue: dailyRevenue, // Store daily revenue for reference
-        date: recordData.date,
-        time: recordData.time,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp()
-      };
-      
-      await service_db.collection('commissions').add(commissionData);
-    } catch (commissionError) {
-      console.error('Error saving commission:', commissionError);
-      // Don't fail the record creation if commission fails
-    }
+    // Commission calculation will be handled when record is updated to completed status
+    // This prevents duplicate commission records
 
     res.status(201).json({
       success: true,
@@ -296,6 +255,67 @@ exports.update_record = async (req, res) => {
 
     // Get the updated record
     const updatedDoc = await service_db.collection('records').doc(id).get();
+    const updatedRecord = updatedDoc.data();
+
+    // If record is being updated to completed status with payment, calculate commission
+    if (updateData.status === 'completed' && updateData.amountPaid > 0) {
+      try {
+        // Check if commission already exists for this record
+        const existingCommissionSnapshot = await service_db.collection('commissions')
+          .where('recordId', '==', id)
+          .get();
+
+        // Only create commission if it doesn't exist
+        if (existingCommissionSnapshot.empty) {
+          // Get all completed records for this attendant on this date to calculate daily revenue
+          const attendantRecordsSnapshot = await service_db.collection('records')
+            .where('attendant', '==', updatedRecord.attendant)
+            .where('date', '==', updatedRecord.date)
+            .where('status', '==', 'completed')
+            .get();
+          
+          // Calculate daily revenue (including the current record being updated)
+          let dailyRevenue = 0;
+          attendantRecordsSnapshot.forEach(doc => {
+            const record = doc.data();
+            if (record.recordId !== id) { // Exclude the current record to avoid double counting
+              dailyRevenue += record.amountPaid;
+            }
+          });
+          dailyRevenue += updatedRecord.amountPaid; // Add the current record's amount
+          
+          // Determine commission rate based on daily revenue
+          const commissionRate = dailyRevenue >= 6000 ? 30 : 20;
+          const commissionAmount = (updatedRecord.amountPaid * commissionRate) / 100;
+          
+          const commissionData = {
+            recordId: id,
+            attendant: updatedRecord.attendant,
+            registrationNumber: updatedRecord.registrationNumber,
+            carModel: updatedRecord.carModel,
+            vehicleType: updatedRecord.vehicleType,
+            services: updatedRecord.services,
+            serviceOffered: updatedRecord.serviceOffered,
+            amountPaid: updatedRecord.amountPaid,
+            commissionAmount: commissionAmount,
+            commissionRate: commissionRate,
+            dailyRevenue: dailyRevenue,
+            date: updatedRecord.date,
+            time: updatedRecord.time,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+          };
+          
+          await service_db.collection('commissions').add(commissionData);
+          console.log(`Commission created for record ${id}: ${commissionAmount} (${commissionRate}% of ${updatedRecord.amountPaid})`);
+        } else {
+          console.log(`Commission already exists for record ${id}, skipping creation`);
+        }
+      } catch (commissionError) {
+        console.error('Error saving commission on update:', commissionError);
+        // Don't fail the update if commission fails
+      }
+    }
 
     res.status(200).json({
       success: true,
@@ -680,6 +700,78 @@ exports.get_dashboard_stats = async (req, res) => {
 
   } catch (error) {
     console.error('Error getting dashboard stats:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
+// Clean up duplicate commission records
+exports.cleanup_duplicate_commissions = async (req, res) => {
+  try {
+    console.log('Starting cleanup of duplicate commission records...');
+    
+    // Get all commission records
+    const commissionsSnapshot = await service_db.collection('commissions').get();
+    const commissions = [];
+    const recordIdMap = new Map();
+    
+    commissionsSnapshot.forEach(doc => {
+      const data = doc.data();
+      commissions.push({
+        id: doc.id,
+        ...data
+      });
+      
+      // Track commission records by recordId
+      if (!recordIdMap.has(data.recordId)) {
+        recordIdMap.set(data.recordId, []);
+      }
+      recordIdMap.get(data.recordId).push({
+        id: doc.id,
+        ...data
+      });
+    });
+    
+    // Find duplicates and remove them
+    let duplicatesRemoved = 0;
+    const duplicateRecordIds = [];
+    
+    for (const [recordId, commissionList] of recordIdMap.entries()) {
+      if (commissionList.length > 1) {
+        console.log(`Found ${commissionList.length} commissions for record ${recordId}`);
+        duplicateRecordIds.push(recordId);
+        
+        // Sort by creation date (keep the oldest one)
+        commissionList.sort((a, b) => {
+          const aTime = a.createdAt?.toDate?.() || new Date(a.createdAt?._seconds * 1000) || new Date(0);
+          const bTime = b.createdAt?.toDate?.() || new Date(b.createdAt?._seconds * 1000) || new Date(0);
+          return aTime - bTime;
+        });
+        
+        // Remove all but the first (oldest) commission
+        for (let i = 1; i < commissionList.length; i++) {
+          await service_db.collection('commissions').doc(commissionList[i].id).delete();
+          duplicatesRemoved++;
+          console.log(`Removed duplicate commission ${commissionList[i].id} for record ${recordId}`);
+        }
+      }
+    }
+    
+    res.status(200).json({
+      success: true,
+      message: `Cleanup completed. Removed ${duplicatesRemoved} duplicate commission records.`,
+      data: {
+        totalCommissions: commissions.length,
+        duplicatesRemoved,
+        affectedRecordIds: duplicateRecordIds
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error cleaning up duplicate commissions:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error',

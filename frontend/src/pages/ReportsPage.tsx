@@ -927,18 +927,18 @@ export function ReportsPage() {
       </Card>
 
       {/* Key Performance Indicators */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
         <Card className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-green-500">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-3 pt-3 md:px-6 md:pt-6">
+            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">
               Total Revenue
             </CardTitle>
-            <div className="p-2 rounded-lg bg-green-50">
-              <DollarSign className="h-4 w-4 text-green-600" />
+            <div className="p-1.5 md:p-2 rounded-lg bg-green-50">
+              <DollarSign className="h-3 w-3 md:h-4 md:w-4 text-green-600" />
             </div>
           </CardHeader>
-          <CardContent className="px-4 pb-4">
-            <div className="text-2xl font-bold text-green-600">
+          <CardContent className="px-3 pb-3 md:px-6 md:pb-6">
+            <div className="text-lg md:text-2xl font-bold text-green-600">
               KSh {analytics?.totalRevenue.toLocaleString() || '0'}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
@@ -948,16 +948,16 @@ export function ReportsPage() {
         </Card>
 
         <Card className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-blue-500">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-3 pt-3 md:px-6 md:pt-6">
+            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">
               Net Profit
             </CardTitle>
-            <div className="p-2 rounded-lg bg-blue-50">
-              <Wallet className="h-4 w-4 text-blue-600" />
+            <div className="p-1.5 md:p-2 rounded-lg bg-blue-50">
+              <Wallet className="h-3 w-3 md:h-4 md:w-4 text-blue-600" />
             </div>
           </CardHeader>
-          <CardContent className="px-4 pb-4">
-            <div className="text-2xl font-bold text-blue-600">
+          <CardContent className="px-3 pb-3 md:px-6 md:pb-6">
+            <div className="text-lg md:text-2xl font-bold text-blue-600">
               KSh {analytics?.totalProfit.toLocaleString() || '0'}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
@@ -967,16 +967,16 @@ export function ReportsPage() {
         </Card>
 
         <Card className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-purple-500">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-3 pt-3 md:px-6 md:pt-6">
+            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">
               Total Vehicles
             </CardTitle>
-            <div className="p-2 rounded-lg bg-purple-50">
-              <Car className="h-4 w-4 text-purple-600" />
+            <div className="p-1.5 md:p-2 rounded-lg bg-purple-50">
+              <Car className="h-3 w-3 md:h-4 md:w-4 text-purple-600" />
             </div>
           </CardHeader>
-          <CardContent className="px-4 pb-4">
-            <div className="text-2xl font-bold text-purple-600">
+          <CardContent className="px-3 pb-3 md:px-6 md:pb-6">
+            <div className="text-lg md:text-2xl font-bold text-purple-600">
               {analytics?.totalVehicles || 0}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
@@ -986,16 +986,16 @@ export function ReportsPage() {
         </Card>
 
         <Card className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-orange-500">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-3 pt-3 md:px-6 md:pt-6">
+            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">
               Avg. Order Value
             </CardTitle>
-            <div className="p-2 rounded-lg bg-orange-50">
-              <Target className="h-4 w-4 text-orange-600" />
+            <div className="p-1.5 md:p-2 rounded-lg bg-orange-50">
+              <Target className="h-3 w-3 md:h-4 md:w-4 text-orange-600" />
             </div>
           </CardHeader>
-          <CardContent className="px-4 pb-4">
-            <div className="text-2xl font-bold text-orange-600">
+          <CardContent className="px-3 pb-3 md:px-6 md:pb-6">
+            <div className="text-lg md:text-2xl font-bold text-orange-600">
               KSh {analytics?.averageOrderValue.toLocaleString() || '0'}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
@@ -1006,18 +1006,18 @@ export function ReportsPage() {
       </div>
 
       {/* Secondary Metrics */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
         <Card className="hover:shadow-lg transition-all duration-300">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-3 pt-3 md:px-6 md:pt-6">
+            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">
               Daily Average
             </CardTitle>
-            <div className="p-2 rounded-lg bg-indigo-50">
-              <Activity className="h-4 w-4 text-indigo-600" />
+            <div className="p-1.5 md:p-2 rounded-lg bg-indigo-50">
+              <Activity className="h-3 w-3 md:h-4 md:w-4 text-indigo-600" />
             </div>
           </CardHeader>
-          <CardContent className="px-4 pb-4">
-            <div className="text-xl font-bold text-indigo-600">
+          <CardContent className="px-3 pb-3 md:px-6 md:pb-6">
+            <div className="text-lg md:text-xl font-bold text-indigo-600">
               KSh {analytics?.dailyAverage.toLocaleString() || '0'}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
@@ -1027,16 +1027,16 @@ export function ReportsPage() {
         </Card>
 
         <Card className="hover:shadow-lg transition-all duration-300">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-3 pt-3 md:px-6 md:pt-6">
+            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">
               Monthly Projection
             </CardTitle>
-            <div className="p-2 rounded-lg bg-teal-50">
-              <TrendingUp className="h-4 w-4 text-teal-600" />
+            <div className="p-1.5 md:p-2 rounded-lg bg-teal-50">
+              <TrendingUp className="h-3 w-3 md:h-4 md:w-4 text-teal-600" />
             </div>
           </CardHeader>
-          <CardContent className="px-4 pb-4">
-            <div className="text-xl font-bold text-teal-600">
+          <CardContent className="px-3 pb-3 md:px-6 md:pb-6">
+            <div className="text-lg md:text-xl font-bold text-teal-600">
               KSh {analytics?.monthlyProjection.toLocaleString() || '0'}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
@@ -1046,16 +1046,16 @@ export function ReportsPage() {
         </Card>
 
         <Card className="hover:shadow-lg transition-all duration-300">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-3 pt-3 md:px-6 md:pt-6">
+            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">
               Total Commissions
             </CardTitle>
-            <div className="p-2 rounded-lg bg-red-50">
-              <Percent className="h-4 w-4 text-red-600" />
+            <div className="p-1.5 md:p-2 rounded-lg bg-red-50">
+              <Percent className="h-3 w-3 md:h-4 md:w-4 text-red-600" />
             </div>
           </CardHeader>
-          <CardContent className="px-4 pb-4">
-            <div className="text-xl font-bold text-red-600">
+          <CardContent className="px-3 pb-3 md:px-6 md:pb-6">
+            <div className="text-lg md:text-xl font-bold text-red-600">
               KSh {analytics?.totalCommissions.toLocaleString() || '0'}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
@@ -1065,16 +1065,16 @@ export function ReportsPage() {
         </Card>
 
         <Card className="hover:shadow-lg transition-all duration-300">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-3 pt-3 md:px-6 md:pt-6">
+            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">
               Peak Hours
             </CardTitle>
-            <div className="p-2 rounded-lg bg-yellow-50">
-              <Clock className="h-4 w-4 text-yellow-600" />
+            <div className="p-1.5 md:p-2 rounded-lg bg-yellow-50">
+              <Clock className="h-3 w-3 md:h-4 md:w-4 text-yellow-600" />
             </div>
           </CardHeader>
-          <CardContent className="px-4 pb-4">
-            <div className="text-xl font-bold text-yellow-600">
+          <CardContent className="px-3 pb-3 md:px-6 md:pb-6">
+            <div className="text-lg md:text-xl font-bold text-yellow-600">
               {analytics?.businessMetrics.peakHours || 'N/A'}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
@@ -1096,35 +1096,35 @@ export function ReportsPage() {
             <CardDescription>Revenue, profit, and efficiency metrics by attendant</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="text-center p-4 bg-green-50 rounded-lg border border-green-200">
-                <Award className="h-6 w-6 text-green-600 mx-auto mb-2" />
-                <p className="text-sm text-gray-600 font-medium">Top Performer</p>
-                <p className="font-bold text-green-600">{analytics?.topAttendant.name}</p>
-                <p className="text-sm text-gray-500">{analytics?.topAttendant.vehicleCount} vehicles</p>
+            <div className="grid grid-cols-2 gap-3 md:gap-4">
+              <div className="text-center p-3 md:p-4 bg-green-50 rounded-lg border border-green-200">
+                <Award className="h-4 w-4 md:h-6 md:w-6 text-green-600 mx-auto mb-2" />
+                <p className="text-xs md:text-sm text-gray-600 font-medium">Top Performer</p>
+                <p className="font-bold text-green-600 text-sm md:text-base">{analytics?.topAttendant.name}</p>
+                <p className="text-xs md:text-sm text-gray-500">{analytics?.topAttendant.vehicleCount} vehicles</p>
                 <p className="text-xs text-green-600 font-medium">Profit: KSh {analytics?.topAttendant.profit.toLocaleString()}</p>
               </div>
-              <div className="text-center p-4 bg-red-50 rounded-lg border border-red-200">
-                <TrendingDown className="h-6 w-6 text-red-600 mx-auto mb-2" />
-                <p className="text-sm text-gray-600 font-medium">Needs Improvement</p>
-                <p className="font-bold text-red-600">{analytics?.leastAttendant.name}</p>
-                <p className="text-sm text-gray-500">{analytics?.leastAttendant.vehicleCount} vehicles</p>
+              <div className="text-center p-3 md:p-4 bg-red-50 rounded-lg border border-red-200">
+                <TrendingDown className="h-4 w-4 md:h-6 md:w-6 text-red-600 mx-auto mb-2" />
+                <p className="text-xs md:text-sm text-gray-600 font-medium">Needs Improvement</p>
+                <p className="font-bold text-red-600 text-sm md:text-base">{analytics?.leastAttendant.name}</p>
+                <p className="text-xs md:text-sm text-gray-500">{analytics?.leastAttendant.vehicleCount} vehicles</p>
                 <p className="text-xs text-red-600 font-medium">Profit: KSh {analytics?.leastAttendant.profit.toLocaleString()}</p>
               </div>
             </div>
             
-            <div className="grid grid-cols-2 gap-4">
-              <div className="text-center p-4 bg-blue-50 rounded-lg border border-blue-200">
-                <Wallet className="h-6 w-6 text-blue-600 mx-auto mb-2" />
-                <p className="text-sm text-gray-600 font-medium">Highest Commission</p>
-                <p className="font-bold text-blue-600">{analytics?.highestCommissionAttendant.name}</p>
-                <p className="text-sm text-gray-500">KSh {analytics?.highestCommissionAttendant.commission.toLocaleString()}</p>
+            <div className="grid grid-cols-2 gap-3 md:gap-4">
+              <div className="text-center p-3 md:p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <Wallet className="h-4 w-4 md:h-6 md:w-6 text-blue-600 mx-auto mb-2" />
+                <p className="text-xs md:text-sm text-gray-600 font-medium">Highest Commission</p>
+                <p className="font-bold text-blue-600 text-sm md:text-base">{analytics?.highestCommissionAttendant.name}</p>
+                <p className="text-xs md:text-sm text-gray-500">KSh {analytics?.highestCommissionAttendant.commission.toLocaleString()}</p>
               </div>
-              <div className="text-center p-4 bg-orange-50 rounded-lg border border-orange-200">
-                <Percent className="h-6 w-6 text-orange-600 mx-auto mb-2" />
-                <p className="text-sm text-gray-600 font-medium">Lowest Commission</p>
-                <p className="font-bold text-orange-600">{analytics?.lowestCommissionAttendant.name}</p>
-                <p className="text-sm text-gray-500">KSh {analytics?.lowestCommissionAttendant.commission.toLocaleString()}</p>
+              <div className="text-center p-3 md:p-4 bg-orange-50 rounded-lg border border-orange-200">
+                <Percent className="h-4 w-4 md:h-6 md:w-6 text-orange-600 mx-auto mb-2" />
+                <p className="text-xs md:text-sm text-gray-600 font-medium">Lowest Commission</p>
+                <p className="font-bold text-orange-600 text-sm md:text-base">{analytics?.lowestCommissionAttendant.name}</p>
+                <p className="text-xs md:text-sm text-gray-500">KSh {analytics?.lowestCommissionAttendant.commission.toLocaleString()}</p>
               </div>
             </div>
           </CardContent>
@@ -1140,22 +1140,22 @@ export function ReportsPage() {
             <CardDescription>Revenue and profit analysis by service type</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="text-center p-4 bg-green-50 rounded-lg border border-green-200">
-                <TrendingUp className="h-6 w-6 text-green-600 mx-auto mb-2" />
-                <p className="text-sm text-gray-600 font-medium">Most Profitable</p>
-                <p className="font-bold text-green-600">{analytics?.topService.service}</p>
-                <p className="text-sm text-gray-500">{analytics?.topService.vehicleType}</p>
-                <p className="text-sm text-green-600 font-medium">Revenue: KSh {analytics?.topService.revenue.toLocaleString()}</p>
+            <div className="grid grid-cols-2 gap-3 md:gap-4">
+              <div className="text-center p-3 md:p-4 bg-green-50 rounded-lg border border-green-200">
+                <TrendingUp className="h-4 w-4 md:h-6 md:w-6 text-green-600 mx-auto mb-2" />
+                <p className="text-xs md:text-sm text-gray-600 font-medium">Most Profitable</p>
+                <p className="font-bold text-green-600 text-sm md:text-base">{analytics?.topService.service}</p>
+                <p className="text-xs md:text-sm text-gray-500">{analytics?.topService.vehicleType}</p>
+                <p className="text-xs md:text-sm text-green-600 font-medium">Revenue: KSh {analytics?.topService.revenue.toLocaleString()}</p>
                 <p className="text-xs text-green-600 font-medium">Profit: KSh {analytics?.topService.profit.toLocaleString()}</p>
               </div>
               
-              <div className="text-center p-4 bg-red-50 rounded-lg border border-red-200">
-                <TrendingDown className="h-6 w-6 text-red-600 mx-auto mb-2" />
-                <p className="text-sm text-gray-600 font-medium">Least Profitable</p>
-                <p className="font-bold text-red-600">{analytics?.leastService.service}</p>
-                <p className="text-sm text-gray-500">{analytics?.leastService.vehicleType}</p>
-                <p className="text-sm text-red-600 font-medium">Revenue: KSh {analytics?.leastService.revenue.toLocaleString()}</p>
+              <div className="text-center p-3 md:p-4 bg-red-50 rounded-lg border border-red-200">
+                <TrendingDown className="h-4 w-4 md:h-6 md:w-6 text-red-600 mx-auto mb-2" />
+                <p className="text-xs md:text-sm text-gray-600 font-medium">Least Profitable</p>
+                <p className="font-bold text-red-600 text-sm md:text-base">{analytics?.leastService.service}</p>
+                <p className="text-xs md:text-sm text-gray-500">{analytics?.leastService.vehicleType}</p>
+                <p className="text-xs md:text-sm text-red-600 font-medium">Revenue: KSh {analytics?.leastService.revenue.toLocaleString()}</p>
                 <p className="text-xs text-red-600 font-medium">Profit: KSh {analytics?.leastService.profit.toLocaleString()}</p>
               </div>
             </div>
@@ -1177,28 +1177,32 @@ export function ReportsPage() {
           <CardContent>
             <div className="space-y-3">
               {analytics?.attendantStats.slice(0, 5).map((attendant, index) => (
-                <div key={attendant.name} className="flex justify-between items-center p-4 border rounded-lg hover:bg-gray-50 transition-colors">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                      <span className="text-sm font-bold text-blue-600">{index + 1}</span>
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900">{attendant.name}</p>
-                      <p className="text-sm text-gray-500">{attendant.vehicleCount} vehicles • KSh {attendant.efficiency.toLocaleString()}/vehicle</p>
+                <div key={attendant.name} className="border border-blue-200 rounded-lg p-3 md:p-4 bg-blue-50/30 hover:bg-blue-50/50 transition-colors">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center space-x-2 md:space-x-3">
+                      <div className="w-6 h-6 md:w-8 md:h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                        <span className="text-xs md:text-sm font-bold text-blue-600">{index + 1}</span>
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900 text-sm md:text-base">{attendant.name}</p>
+                        <p className="text-xs md:text-sm text-gray-500">{attendant.vehicleCount} vehicles</p>
+                      </div>
                     </div>
                   </div>
-                  <div className="text-right space-y-1">
-                    <div className="flex items-center space-x-2">
-                      <p className="font-bold text-green-600">KSh {attendant.revenue.toLocaleString()}</p>
-                      <Badge variant="outline" className="text-xs">Revenue</Badge>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 md:gap-3">
+                    <div className="text-center p-2 bg-white rounded border">
+                      <p className="text-xs text-gray-600">Revenue</p>
+                      <p className="font-bold text-green-600 text-sm md:text-base">KSh {attendant.revenue.toLocaleString()}</p>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <p className="text-sm text-blue-600 font-medium">KSh {attendant.profit.toLocaleString()}</p>
-                      <Badge variant="outline" className="text-xs">Profit</Badge>
+                    <div className="text-center p-2 bg-white rounded border">
+                      <p className="text-xs text-gray-600">Profit</p>
+                      <p className="font-bold text-blue-600 text-sm md:text-base">KSh {attendant.profit.toLocaleString()}</p>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <p className="text-xs text-gray-500">Commission: KSh {attendant.commission.toLocaleString()}</p>
-                      <Badge variant={attendant.commissionRate === 0.30 ? "default" : "secondary"} className="text-xs">
+                    <div className="text-center p-2 bg-white rounded border">
+                      <p className="text-xs text-gray-600">Commission</p>
+                      <p className="font-bold text-purple-600 text-sm md:text-base">KSh {attendant.commission.toLocaleString()}</p>
+                      <Badge variant={attendant.commissionRate === 0.30 ? "default" : "secondary"} className="text-xs mt-1">
                         {Math.round(attendant.commissionRate * 100)}%
                       </Badge>
                     </div>
@@ -1221,27 +1225,29 @@ export function ReportsPage() {
           <CardContent>
             <div className="space-y-3">
               {analytics?.paymentMethodStats.map((payment, index) => (
-                <div key={payment.method} className="flex justify-between items-center p-4 border rounded-lg hover:bg-gray-50 transition-colors">
-                  <div className="flex items-center space-x-3">
-                    <div className="p-2 bg-green-50 rounded-lg">
-                      <CreditCard className="h-4 w-4 text-green-600" />
+                <div key={payment.method} className="border border-green-200 rounded-lg p-3 md:p-4 bg-green-50/30 hover:bg-green-50/50 transition-colors">
+                  <div className="flex items-center space-x-2 md:space-x-3 mb-3">
+                    <div className="p-1.5 md:p-2 bg-green-50 rounded-lg">
+                      <CreditCard className="h-3 w-3 md:h-4 md:w-4 text-green-600" />
                     </div>
                     <div>
-                      <span className="font-medium text-gray-900">{payment.method}</span>
-                      <p className="text-sm text-gray-500">{payment.count} transactions</p>
+                      <span className="font-medium text-gray-900 text-sm md:text-base">{payment.method}</span>
+                      <p className="text-xs md:text-sm text-gray-500">{payment.count} transactions</p>
                     </div>
                   </div>
-                  <div className="text-right space-y-1">
-                    <div className="flex items-center space-x-2">
-                      <p className="font-bold text-green-600">KSh {payment.revenue.toLocaleString()}</p>
-                      <Badge variant="outline" className="text-xs">Total</Badge>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 md:gap-3">
+                    <div className="text-center p-2 bg-white rounded border">
+                      <p className="text-xs text-gray-600">Total Revenue</p>
+                      <p className="font-bold text-green-600 text-sm md:text-base">KSh {payment.revenue.toLocaleString()}</p>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <p className="text-sm text-gray-600">KSh {payment.averageTransaction.toLocaleString()}</p>
-                      <Badge variant="secondary" className="text-xs">Avg</Badge>
+                    <div className="text-center p-2 bg-white rounded border">
+                      <p className="text-xs text-gray-600">Avg Transaction</p>
+                      <p className="font-bold text-blue-600 text-sm md:text-base">KSh {payment.averageTransaction.toLocaleString()}</p>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <p className="text-xs text-gray-500">{payment.percentage.toFixed(1)}% of transactions</p>
+                    <div className="text-center p-2 bg-white rounded border">
+                      <p className="text-xs text-gray-600">Percentage</p>
+                      <p className="font-bold text-purple-600 text-sm md:text-base">{payment.percentage.toFixed(1)}%</p>
                     </div>
                   </div>
                 </div>
@@ -1261,7 +1267,53 @@ export function ReportsPage() {
           <CardDescription>Revenue, profit, and margin analysis by service type</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
+          {/* Mobile Card View */}
+          <div className="block md:hidden">
+            <div className="space-y-3">
+              {analytics?.serviceStats.slice(0, 10).map((service, index) => (
+                <div key={index} className="border border-indigo-200 rounded-lg p-3 bg-indigo-50/30 hover:bg-indigo-50/50 transition-colors">
+                  <div className="flex items-center space-x-2 mb-3">
+                    <div className="w-5 h-5 bg-indigo-100 rounded-full flex items-center justify-center">
+                      <span className="text-xs font-bold text-indigo-600">{index + 1}</span>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-900 text-sm">{service.service}</span>
+                      <Badge variant="outline" className="ml-2 bg-blue-50 text-blue-700 border-blue-200 text-xs">
+                        {service.vehicleType}
+                      </Badge>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="text-center p-2 bg-white rounded border">
+                      <p className="text-xs text-gray-600">Count</p>
+                      <p className="font-bold text-indigo-600 text-sm">{service.count}</p>
+                    </div>
+                    <div className="text-center p-2 bg-white rounded border">
+                      <p className="text-xs text-gray-600">Revenue</p>
+                      <p className="font-bold text-green-600 text-sm">KSh {service.revenue.toLocaleString()}</p>
+                    </div>
+                    <div className="text-center p-2 bg-white rounded border">
+                      <p className="text-xs text-gray-600">Profit</p>
+                      <p className="font-bold text-blue-600 text-sm">KSh {service.profit.toLocaleString()}</p>
+                    </div>
+                    <div className="text-center p-2 bg-white rounded border">
+                      <p className="text-xs text-gray-600">Margin</p>
+                      <Badge 
+                        variant={service.profitMargin > 80 ? "default" : service.profitMargin > 60 ? "secondary" : "destructive"}
+                        className="text-xs"
+                      >
+                        {service.profitMargin.toFixed(1)}%
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Desktop Table View */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full border-collapse">
               <thead>
                 <tr className="border-b bg-gray-50">
