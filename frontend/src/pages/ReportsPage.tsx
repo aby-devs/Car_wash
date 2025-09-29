@@ -121,7 +121,7 @@ export function ReportsPage() {
   // Filter states
   const [filters, setFilters] = useState({
     dateRange: 'full',
-    selectedMonth: 'all',
+    selectedMonth: (new Date().getMonth() + 1).toString(), // Current month (1-12)
     selectedWeek: 'all',
     selectedDay: ''
   });
@@ -406,7 +406,7 @@ export function ReportsPage() {
   const clearFilters = () => {
     setFilters({
       dateRange: 'full',
-      selectedMonth: 'all',
+      selectedMonth: (new Date().getMonth() + 1).toString(), // Current month
       selectedWeek: 'all',
       selectedDay: ''
     });
@@ -919,8 +919,8 @@ export function ReportsPage() {
             <Button onClick={clearFilters} variant="outline">
               Clear Selection
             </Button>
-            <Button onClick={() => setFilters(prev => ({ ...prev, selectedMonth: 'all', selectedWeek: 'all', selectedDay: '' }))}>
-              Full Report
+            <Button onClick={() => setFilters(prev => ({ ...prev, selectedMonth: (new Date().getMonth() + 1).toString(), selectedWeek: 'all', selectedDay: '' }))}>
+              Current Month
             </Button>
           </div>
         </CardContent>

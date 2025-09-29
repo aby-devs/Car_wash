@@ -11,6 +11,8 @@ import { ReportsPage } from "@/pages/ReportsPage";
 import { AddRecordPage } from "@/pages/AddRecordPage";
 import { StaffPage } from "@/pages/StaffPage";
 import { LoginPage } from "@/pages/LoginPage";
+import SignupPage from "@/pages/SignupPage";
+import SettingsPage from "@/pages/SettingsPage";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 
@@ -25,6 +27,7 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/signup" element={<SignupPage />} />
             <Route path="/" element={
               <ProtectedRoute>
                 <Layout />
@@ -34,6 +37,7 @@ const App = () => (
               <Route path="reports" element={<ReportsPage />} />
               <Route path="add-record" element={<AddRecordPage />} />
               <Route path="staff" element={<StaffPage />} />
+              <Route path="settings" element={<SettingsPage />} />
             </Route>
             <Route path="/old" element={<Index />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

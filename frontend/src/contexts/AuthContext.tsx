@@ -15,6 +15,7 @@ interface AuthContextType {
   loading: boolean;
   initialized: boolean;
   login: (email: string, password: string) => Promise<boolean>;
+  signup: (email: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
   refreshAuthToken: () => Promise<boolean>;
   isAuthenticated: boolean;
@@ -117,6 +118,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return false;
   };
 
+  const signup = async (email: string, password: string): Promise<boolean> => {
+    try {
+      const response = await apiService.signup(email, password);
+      return response.success;
+    } catch (error) {
+      console.error('AuthContext: Signup failed:', error);
+    }
+    return false;
+  };
+
   const logout = async (): Promise<void> => {
     try {
       await apiService.logout();
@@ -131,6 +142,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     loading,
     initialized,
     login,
+    signup,
     logout,
     refreshAuthToken,
     isAuthenticated: !!user
@@ -141,7 +153,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     const testBackend = async () => {
       try {
-        const response = await fetch(`${BASE_URL}/auth/health`);
+        const response = await fetch(`${BASE_URL}/api/auth/health`);
         const data = await response.json();
       } catch (error) {
         console.error('Backend health check failed:', error);

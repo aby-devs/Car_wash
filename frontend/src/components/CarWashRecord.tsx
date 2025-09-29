@@ -112,6 +112,7 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
   const [completedServices, setCompletedServices] = useState<CarWashRecord[]>([]);
   const [showPaymentForm, setShowPaymentForm] = useState(false);
   const [selectedActiveService, setSelectedActiveService] = useState<ActiveService | null>(null);
+  const [isPaymentSubmitting, setIsPaymentSubmitting] = useState(false);
   const [paymentFormData, setPaymentFormData] = useState<PaymentFormData>({
     amountPaid: '',
     paymentMethod: '',
@@ -196,6 +197,54 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
     setActiveServices(active);
     setCompletedServices(completed);
   }, [records]);
+
+  // Apply filters to active and completed services
+  const filteredActiveServices = activeServices.filter(service => {
+    const matchesSearch = service.registrationNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         service.carModel.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         service.attendant.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    // Date filtering
+    let matchesDate = true;
+    if (dateFilter) {
+      try {
+        const recordDate = new Date(service.date);
+        const filterDate = new Date(dateFilter);
+        
+        if (!isNaN(recordDate.getTime()) && !isNaN(filterDate.getTime())) {
+          matchesDate = recordDate.toDateString() === filterDate.toDateString();
+        }
+      } catch (error) {
+        matchesDate = true;
+      }
+    }
+    
+    return matchesSearch && matchesDate;
+  });
+
+  const filteredCompletedServices = completedServices.filter(record => {
+    const matchesSearch = record.registrationNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         record.carModel.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         record.attendant.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    // Date filtering
+    let matchesDate = true;
+    if (dateFilter) {
+      try {
+        const recordDate = new Date(record.date);
+        const filterDate = new Date(dateFilter);
+        
+        if (!isNaN(recordDate.getTime()) && !isNaN(filterDate.getTime())) {
+          matchesDate = recordDate.toDateString() === filterDate.toDateString();
+        }
+      } catch (error) {
+        matchesDate = true;
+      }
+    }
+    
+    const matchesPayment = paymentFilter === 'All Payment' || record.paymentMethod === paymentFilter;
+    return matchesSearch && matchesDate && matchesPayment;
+  });
 
 
   // Generate unique ID for services
@@ -297,8 +346,62 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
     });
   };
 
+  // Handle edit active service
+  const handleEditActiveService = (service: ActiveService) => {
+    // Convert ActiveService to CarWashRecord format for editing
+    const recordToEdit: CarWashRecord = {
+      id: service.id,
+      registrationNumber: service.registrationNumber,
+      carModel: service.carModel,
+      services: `${service.vehicleType} - ${service.serviceOffered.join(', ')}`,
+      vehicleType: service.vehicleType,
+      serviceOffered: service.serviceOffered.join(', '),
+      amountPaid: 0,
+      paymentMethod: 'Cash',
+      attendant: service.attendant,
+      date: service.date,
+      time: service.time || '',
+      status: 'active',
+      createdAt: service.createdAt,
+      updatedAt: service.createdAt
+    };
+    
+    handleEditRecord(recordToEdit);
+  };
+
+  // Handle delete active service
+  const handleDeleteActiveService = async (service: ActiveService) => {
+    if (window.confirm(`Are you sure you want to delete the service for ${service.registrationNumber}?`)) {
+      try {
+        if (onDeleteRecord) {
+          await onDeleteRecord(service.id);
+        } else {
+          // Fallback to direct API call if parent handler not provided
+          const response = await apiService.deleteRecord(service.id);
+          if (response.success) {
+            toast({
+              title: "Service Deleted",
+              description: "The service has been deleted successfully.",
+            });
+          } else {
+            throw new Error(response.message || 'Failed to delete service');
+          }
+        }
+      } catch (error) {
+        console.error('Error deleting service:', error);
+        toast({
+          title: "Error Deleting Service",
+          description: `Failed to delete service: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          variant: "destructive"
+        });
+      }
+    }
+  };
+
   const handlePaymentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (isPaymentSubmitting) return; // Prevent double submission
     
     if (!selectedActiveService || !paymentFormData.amountPaid || !paymentFormData.paymentMethod) {
       toast({
@@ -318,6 +421,7 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
       return;
     }
 
+    setIsPaymentSubmitting(true);
     try {
       // Create completed record
       const completedRecord: Omit<CarWashRecord, 'id' | 'time' | 'createdAt' | 'updatedAt'> = {
@@ -339,6 +443,7 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
         await onUpdateRecord(selectedActiveService.id, completedRecord);
         setShowPaymentForm(false);
         setSelectedActiveService(null);
+        setIsPaymentSubmitting(false);
         setPaymentFormData({
           amountPaid: '',
           paymentMethod: '',
@@ -354,6 +459,7 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
           });
           setShowPaymentForm(false);
           setSelectedActiveService(null);
+          setIsPaymentSubmitting(false);
           setPaymentFormData({
             amountPaid: '',
             paymentMethod: '',
@@ -370,6 +476,8 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
         description: "Failed to process payment. Please try again.",
         variant: "destructive"
       });
+    } finally {
+      setIsPaymentSubmitting(false);
     }
   };
 
@@ -561,13 +669,13 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
   // Use the filtered records directly (already includes date filtering)
   const todayRecords = filteredRecords;
 
-  // Calculate summary statistics for selected date
-  const totalRevenue = todayRecords.reduce((sum, record) => sum + record.amountPaid, 0);
-  const totalServices = todayRecords.length;
-  const mpesaCount = todayRecords.filter(r => r.paymentMethod === 'Mpesa').length;
-  const cashCount = todayRecords.filter(r => r.paymentMethod === 'Cash').length;
-  const mpesaRevenue = todayRecords.filter(r => r.paymentMethod === 'Mpesa').reduce((sum, record) => sum + record.amountPaid, 0);
-  const cashRevenue = todayRecords.filter(r => r.paymentMethod === 'Cash').reduce((sum, record) => sum + record.amountPaid, 0);
+  // Calculate summary statistics for filtered data
+  const totalRevenue = filteredCompletedServices.reduce((sum, record) => sum + record.amountPaid, 0);
+  const totalServices = filteredCompletedServices.length;
+  const mpesaCount = filteredCompletedServices.filter(r => r.paymentMethod === 'Mpesa').length;
+  const cashCount = filteredCompletedServices.filter(r => r.paymentMethod === 'Cash').length;
+  const mpesaRevenue = filteredCompletedServices.filter(r => r.paymentMethod === 'Mpesa').reduce((sum, record) => sum + record.amountPaid, 0);
+  const cashRevenue = filteredCompletedServices.filter(r => r.paymentMethod === 'Cash').reduce((sum, record) => sum + record.amountPaid, 0);
 
 
   const exportServicesToExcel = async () => {
@@ -881,7 +989,7 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
 
           {/* Mobile Card View */}
           <div className="block md:hidden">
-            {activeServices.length === 0 ? (
+            {filteredActiveServices.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground p-4">
                 <div className="text-6xl mb-4">🚗</div>
                 <div className="text-lg font-semibold mb-2">No Active Services</div>
@@ -889,7 +997,7 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
               </div>
             ) : (
               <div className="space-y-3 p-4">
-                {activeServices.map((service) => (
+                {filteredActiveServices.map((service) => (
                   <div key={service.id} className="bg-white border border-orange-200 rounded-lg p-4 space-y-3 shadow-sm">
                     <div className="flex justify-between items-start">
                       <div className="font-medium text-orange-800">{service.registrationNumber}</div>
@@ -904,13 +1012,35 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-gray-600">👤 {service.attendant}</span>
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={() => handlePayClick(service)}
+                          className="bg-green-600 hover:bg-green-700 text-white"
+                          size="sm"
+                        >
+                          <DollarSign className="mr-2 h-4 w-4" />
+                          Pay
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
                       <Button
-                        onClick={() => handlePayClick(service)}
-                        className="bg-green-600 hover:bg-green-700 text-white"
+                        onClick={() => handleEditActiveService(service)}
+                        variant="outline"
                         size="sm"
+                        className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
                       >
-                        <DollarSign className="mr-2 h-4 w-4" />
-                        Pay
+                        <Edit className="mr-1 h-3 w-3" />
+                        Edit
+                      </Button>
+                      <Button
+                        onClick={() => handleDeleteActiveService(service)}
+                        variant="outline"
+                        size="sm"
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <Trash2 className="mr-1 h-3 w-3" />
+                        Delete
                       </Button>
                     </div>
                   </div>
@@ -931,19 +1061,20 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
                   <TableHead className="font-semibold py-4 px-4">Services</TableHead>
                   <TableHead className="font-semibold py-4 px-4">Attendant</TableHead>
                   <TableHead className="font-semibold py-4 px-4 text-center">Payment</TableHead>
+                  <TableHead className="font-semibold py-4 px-4 text-center">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {activeServices.length === 0 ? (
+                {filteredActiveServices.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                    <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
                       <div className="text-6xl mb-4">🚗</div>
                       <div className="text-lg font-semibold mb-2">No Active Services</div>
                       <div className="text-sm mb-2">All services are completed</div>
                     </TableCell>
                   </TableRow>
                 ) : (
-                  activeServices.map((service) => (
+                  filteredActiveServices.map((service) => (
                     <TableRow key={service.id} className="hover:bg-muted/50">
                       <TableCell className="font-medium py-4 px-4">{formatDate(service.date)}</TableCell>
                       <TableCell className="font-medium py-4 px-4">{service.registrationNumber}</TableCell>
@@ -964,6 +1095,26 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
                           <DollarSign className="mr-2 h-4 w-4" />
                           Pay
                         </Button>
+                      </TableCell>
+                      <TableCell className="py-4 px-4 text-center">
+                        <div className="flex gap-2 justify-center">
+                          <Button
+                            onClick={() => handleEditActiveService(service)}
+                            variant="outline"
+                            size="sm"
+                            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            onClick={() => handleDeleteActiveService(service)}
+                            variant="outline"
+                            size="sm"
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
@@ -1026,7 +1177,7 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
 
           {/* Mobile Card View */}
           <div className="block md:hidden">
-            {completedServices.length === 0 ? (
+            {filteredCompletedServices.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground p-4">
                 <div className="text-6xl mb-4">✅</div>
                 <div className="text-lg font-semibold mb-2">No Completed Services</div>
@@ -1034,7 +1185,7 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
               </div>
             ) : (
               <div className="space-y-3 p-4">
-                {completedServices.map((record) => (
+                {filteredCompletedServices.map((record) => (
                   <div key={record.id} className="bg-white border border-green-200 rounded-lg p-4 space-y-3 shadow-sm">
                     <div className="flex justify-between items-start">
                       <div className="font-medium text-green-800">{record.registrationNumber}</div>
@@ -1088,7 +1239,7 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {completedServices.length === 0 ? (
+                {filteredCompletedServices.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={10} className="text-center py-12 text-muted-foreground">
                       <div className="text-6xl mb-4">✅</div>
@@ -1097,7 +1248,7 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
                     </TableCell>
                   </TableRow>
                 ) : (
-                  completedServices.map((record) => (
+                  filteredCompletedServices.map((record) => (
                     <TableRow key={record.id} className="hover:bg-muted/50">
                       <TableCell className="font-medium py-4 px-4">{formatDate(record.date)}</TableCell>
                       <TableCell className="font-medium py-4 px-4">{record.registrationNumber}</TableCell>
@@ -1401,6 +1552,7 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
                 onClick={() => {
                   setShowPaymentForm(false);
                   setSelectedActiveService(null);
+                  setIsPaymentSubmitting(false);
                   setPaymentFormData({
                     amountPaid: '',
                     paymentMethod: '',
@@ -1492,10 +1644,20 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
                   <Button 
                     type="submit" 
                     size="default"
-                    className="bg-green-600 hover:bg-green-700 text-white h-10 px-6 text-sm font-semibold"
+                    disabled={isPaymentSubmitting}
+                    className="bg-green-600 hover:bg-green-700 text-white h-10 px-6 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <DollarSign className="mr-2 h-4 w-4" />
-                    Complete Payment
+                    {isPaymentSubmitting ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <DollarSign className="mr-2 h-4 w-4" />
+                        Complete Payment
+                      </>
+                    )}
                   </Button>
                 </div>
               </form>

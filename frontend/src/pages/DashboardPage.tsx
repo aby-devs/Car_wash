@@ -3,6 +3,8 @@ import { Dashboard } from "@/components/Dashboard";
 import { CarWashRecord, DashboardStats } from "@/components/CarWashRecord";
 import { apiService } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
+import { useRealtimeRecords } from "@/hooks/useRealtimeRecords";
+import { addRecordSafely, updateRecordSafely } from "@/utils/recordUtils";
 
 export function DashboardPage() {
   const [records, setRecords] = useState<CarWashRecord[]>([]);
@@ -13,6 +15,21 @@ export function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+
+  // Real-time record handlers
+  const handleRealtimeRecordAdded = (record: CarWashRecord) => {
+    setRecords(prev => addRecordSafely(prev, record));
+  };
+
+  const handleRealtimeRecordUpdated = (record: CarWashRecord) => {
+    setRecords(prev => updateRecordSafely(prev, record));
+  };
+
+  // Set up real-time updates
+  useRealtimeRecords({
+    onRecordAdded: handleRealtimeRecordAdded,
+    onRecordUpdated: handleRealtimeRecordUpdated,
+  });
 
   // Load records and dashboard stats from API on component mount
   useEffect(() => {

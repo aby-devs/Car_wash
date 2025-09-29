@@ -1,4 +1,4 @@
-import { Plus, BarChart3, FileText, Users, User, LogOut } from "lucide-react";
+import { Plus, BarChart3, FileText, Users, User, LogOut, Settings } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import {
   Sidebar,
@@ -20,6 +20,7 @@ const menuItems = [
   { title: "Add Service", path: "/add-record", icon: FileText },
   { title: "Staff Commission", path: "/staff", icon: Users },
   { title: "Reports", path: "/reports", icon: FileText },
+  { title: "Settings", path: "/settings", icon: Settings },
 ];
 
 export function AppSidebar() {

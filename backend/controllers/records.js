@@ -111,6 +111,16 @@ exports.add_record = async (req, res) => {
     // Save to Firestore using the service order ID as the document ID
     const docRef = await service_db.collection('records').doc(serviceOrderId).set(recordData);
 
+    // Emit real-time update via Socket.io
+    const socketService = req.app.get('socketService');
+    if (socketService) {
+      const newRecord = {
+        id: serviceOrderId,
+        ...recordData
+      };
+      socketService.emitRecordAdded(newRecord);
+    }
+
     // Commission calculation will be handled when record is updated to completed status
     // This prevents duplicate commission records
 
@@ -118,7 +128,7 @@ exports.add_record = async (req, res) => {
       success: true,
       message: 'Car wash record added successfully',
       data: {
-        id: docRef.id,
+        id: serviceOrderId,
         ...recordData
       }
     });
@@ -315,6 +325,16 @@ exports.update_record = async (req, res) => {
         console.error('Error saving commission on update:', commissionError);
         // Don't fail the update if commission fails
       }
+    }
+
+    // Emit real-time update via Socket.io
+    const socketService = req.app.get('socketService');
+    if (socketService) {
+      const updatedRecord = {
+        id: updatedDoc.id,
+        ...updatedDoc.data()
+      };
+      socketService.emitRecordUpdated(updatedRecord);
     }
 
     res.status(200).json({
@@ -558,6 +578,12 @@ exports.delete_record = async (req, res) => {
     }
 
     await service_db.collection('records').doc(id).delete();
+
+    // Emit real-time update via Socket.io
+    const socketService = req.app.get('socketService');
+    if (socketService) {
+      socketService.emitRecordDeleted(id);
+    }
 
     res.status(200).json({
       success: true,

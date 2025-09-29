@@ -209,18 +209,72 @@ export function StaffPage() {
     if (dateFilter) {
       commissionsToProcess = allCommissions.filter(commission => {
         try {
+          // Handle different date formats
+          const commissionDate = commission.date;
+          if (!commissionDate) return false;
           
-          // Direct comparison since both are now in YYYY-MM-DD format
-          return commission.date === dateFilter;
+          // If it's already in YYYY-MM-DD format, direct comparison
+          if (commissionDate === dateFilter) return true;
+          
+          // If it's a timestamp, convert to YYYY-MM-DD
+          if (commissionDate.toDate) {
+            const date = commissionDate.toDate();
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const formattedDate = `${year}-${month}-${day}`;
+            return formattedDate === dateFilter;
+          }
+          
+          // If it's a string date, try to parse it
+          const parsedDate = new Date(commissionDate);
+          if (!isNaN(parsedDate.getTime())) {
+            const year = parsedDate.getFullYear();
+            const month = String(parsedDate.getMonth() + 1).padStart(2, '0');
+            const day = String(parsedDate.getDate()).padStart(2, '0');
+            const formattedDate = `${year}-${month}-${day}`;
+            return formattedDate === dateFilter;
+          }
+          
+          return false;
         } catch (error) {
           console.error('Date parsing error:', error);
-          return true; // If date parsing fails, include the commission
+          return false; // If date parsing fails, exclude the commission
         }
       });
     }
 
 
+    // Group commissions by date and staff member to calculate individual daily revenue
+    const commissionsByDateAndStaff = new Map();
     commissionsToProcess.forEach(commission => {
+      const key = `${commission.date}-${commission.attendant}`;
+      if (!commissionsByDateAndStaff.has(key)) {
+        commissionsByDateAndStaff.set(key, []);
+      }
+      commissionsByDateAndStaff.get(key).push(commission);
+    });
+
+    // Calculate daily revenue for each staff member on each date and recalculate commission rates
+    const updatedCommissions = [];
+    commissionsByDateAndStaff.forEach((staffDayCommissions, key) => {
+      const dailyRevenue = staffDayCommissions.reduce((sum, c) => sum + c.amountPaid, 0);
+      const correctCommissionRate = dailyRevenue >= 6000 ? 30 : 20;
+      
+      
+      staffDayCommissions.forEach(commission => {
+        // Recalculate commission with correct rate based on individual staff daily revenue
+        const correctCommissionAmount = (commission.amountPaid * correctCommissionRate) / 100;
+        
+        updatedCommissions.push({
+          ...commission,
+          commissionRate: correctCommissionRate,
+          commissionAmount: correctCommissionAmount
+        });
+      });
+    });
+
+    updatedCommissions.forEach(commission => {
       totalRevenue += commission.amountPaid;
       totalServices += 1;
       totalCommission += commission.commissionAmount;
@@ -254,6 +308,7 @@ export function StaffPage() {
         staff.commissionRateRange = Math.min(...staff.commissionRates) !== Math.max(...staff.commissionRates) 
           ? `${Math.min(...staff.commissionRates)}% - ${Math.max(...staff.commissionRates)}%`
           : `${staff.commissionRates[0]}%`;
+        
       } else {
         staff.averageCommissionRate = 0;
         staff.commissionRateRange = '0%';
@@ -262,8 +317,8 @@ export function StaffPage() {
 
     const staffBreakdown = Array.from(staffMap.values()).sort((a, b) => b.commission - a.commission);
     
-    // Calculate commission rate information
-    const commissionRates = commissionsToProcess.map(c => c.commissionRate);
+    // Calculate commission rate information using updated commissions
+    const commissionRates = updatedCommissions.map(c => c.commissionRate);
     const minRate = commissionRates.length > 0 ? Math.min(...commissionRates) : 0;
     const maxRate = commissionRates.length > 0 ? Math.max(...commissionRates) : 0;
     const avgRate = commissionRates.length > 0 ? commissionRates.reduce((sum, rate) => sum + rate, 0) / commissionRates.length : 0;
@@ -276,7 +331,8 @@ export function StaffPage() {
       totalCommission,
       commissionRate: avgRate, // Use average rate for display
       commissionRateRange: commissionRates.length > 0 ? (minRate !== maxRate ? `${minRate}% - ${maxRate}%` : `${avgRate}%`) : 'No data',
-      staffBreakdown
+      staffBreakdown,
+      updatedCommissions // Include updated commissions for individual record display
     };
   };
 
@@ -289,8 +345,9 @@ export function StaffPage() {
     setLoadingRecords(true);
     
     try {
-      // Filter all commission records for the specific attendant
-      let attendantCommissions = allCommissions.filter(commission => commission.attendant === attendant);
+      // Get the latest commission data and recalculate rates
+      const commissionData = calculateCommissionData();
+      let attendantCommissions = commissionData.updatedCommissions.filter(commission => commission.attendant === attendant);
       
       // Apply date filter if set
       if (dateFilter) {
@@ -303,6 +360,7 @@ export function StaffPage() {
           }
         });
       }
+      
       
       setAttendantRecords(attendantCommissions);
     } catch (error) {
@@ -517,7 +575,7 @@ export function StaffPage() {
     try {
       
       // Test the backend test endpoint first
-      const testResponse = await fetch(`${BASE_URL}/records/test`);
+      const testResponse = await fetch(`${BASE_URL}/api/records/test`);
       const testData = await testResponse.json();
       
       if (testData.success) {
@@ -543,9 +601,9 @@ export function StaffPage() {
     .filter(staff => {
       const matchesSearch = staff.attendant.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesCommission = commissionFilter === 'All' || 
-        (commissionFilter === 'High' && staff.commission >= 1000) ||
-        (commissionFilter === 'Medium' && staff.commission >= 500 && staff.commission < 1000) ||
-        (commissionFilter === 'Low' && staff.commission < 500);
+        (commissionFilter === 'High' && staff.commission >= 2000) ||
+        (commissionFilter === 'Medium' && staff.commission >= 1000 && staff.commission < 2000) ||
+        (commissionFilter === 'Low' && staff.commission < 1000);
       return matchesSearch && matchesCommission;
     });
 
@@ -736,9 +794,9 @@ export function StaffPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="All">All Commission</SelectItem>
-                  <SelectItem value="High">High (≥KSh 1,000)</SelectItem>
-                  <SelectItem value="Medium">Medium (KSh 500-999)</SelectItem>
-                  <SelectItem value="Low">Low (&lt;KSh 500)</SelectItem>
+                  <SelectItem value="High">High (≥KSh 2,000)</SelectItem>
+                  <SelectItem value="Medium">Medium (KSh 1,000-1,999)</SelectItem>
+                  <SelectItem value="Low">Low (&lt;KSh 1,000)</SelectItem>
                 </SelectContent>
               </Select>
               <Button 
@@ -760,7 +818,7 @@ export function StaffPage() {
         <CardContent className="p-0">
           {/* Mobile Card View */}
           <div className="block sm:hidden">
-            {commissionData.staffBreakdown.length === 0 ? (
+            {filteredStaff.length === 0 ? (
               <div className="text-center py-12 text-gray-500 px-4">
                 <div className="text-6xl mb-4">📖</div>
                 <div className="text-lg font-semibold mb-2">Clean Staff Commission Table</div>
@@ -774,16 +832,16 @@ export function StaffPage() {
             ) : (
               <div className="space-y-3 p-4">
                 {/* Show grouped staff data */}
-                {commissionData.staffBreakdown.map((staff) => (
+                {filteredStaff.map((staff) => (
                   <div key={staff.attendant} className="border rounded-lg p-4 space-y-3 hover:shadow-md transition-shadow">
                     <div className="flex justify-between items-start">
                       <div className="font-medium text-lg">{staff.attendant}</div>
                       <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                        staff.commissionRate >= 30
+                        staff.averageCommissionRate === 30
                           ? 'bg-green-100 text-green-800' 
                           : 'bg-yellow-100 text-yellow-800'
                       }`}>
-                        {staff.commissionRate}% avg rate
+                        {staff.averageCommissionRate === 30 ? '30%' : '20%'} avg rate
                       </span>
                     </div>
                     
@@ -839,7 +897,7 @@ export function StaffPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {commissionData.staffBreakdown.length === 0 ? (
+                  {filteredStaff.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
                         <div className="text-6xl mb-4">📖</div>
@@ -854,7 +912,7 @@ export function StaffPage() {
                     </TableRow>
                   ) : (
                     // Show grouped staff data (one row per attendant)
-                    commissionData.staffBreakdown.map((staff) => (
+                    filteredStaff.map((staff) => (
                       <TableRow key={staff.attendant} className="hover:bg-muted/50">
                         <TableCell className="font-medium">
                           {dateFilter ? formatDateShort(dateFilter) : 'Multiple Dates'}
@@ -866,11 +924,11 @@ export function StaffPage() {
                         </TableCell>
                         <TableCell className="text-center">
                           <span className={`px-2 py-1 rounded text-xs font-medium ${
-                            staff.commissionRate >= 30
+                            staff.averageCommissionRate === 30
                               ? 'bg-green-100 text-green-800' 
                               : 'bg-yellow-100 text-yellow-800'
                           }`}>
-                            {staff.commissionRate}%
+                            {staff.averageCommissionRate === 30 ? '30%' : '20%'}
                           </span>
                         </TableCell>
                         <TableCell className="text-right font-semibold text-green-600">
@@ -947,11 +1005,11 @@ export function StaffPage() {
                           <div className="flex items-center justify-between">
                             <span className="text-xs font-medium text-gray-500">Rate</span>
                             <span className={`px-2 py-1 rounded text-xs font-medium ${
-                              commission.commissionRate >= 30 
+                              commission.commissionRate === 30 
                                 ? 'bg-green-100 text-green-800' 
                                 : 'bg-yellow-100 text-yellow-800'
                             }`}>
-                              {commission.commissionRate}%
+                              {commission.commissionRate === 30 ? '30%' : '20%'}
                             </span>
                           </div>
                           <div className="flex items-center justify-between">
@@ -993,11 +1051,11 @@ export function StaffPage() {
                           <td className="border border-gray-300 px-4 py-3 text-right">{formatCurrency(commission.amountPaid)}</td>
                           <td className="border border-gray-300 px-4 py-3 text-center">
                             <span className={`px-2 py-1 rounded text-xs font-medium ${
-                              commission.commissionRate >= 30 
+                              commission.commissionRate === 30 
                                 ? 'bg-green-100 text-green-800' 
                                 : 'bg-yellow-100 text-yellow-800'
                             }`}>
-                              {commission.commissionRate}%
+                              {commission.commissionRate === 30 ? '30%' : '20%'}
                             </span>
                           </td>
                           <td className="border border-gray-300 px-4 py-3 text-right font-semibold text-blue-600">

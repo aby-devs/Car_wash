@@ -349,6 +349,126 @@ exports.verifyToken = async (req, res) => {
   }
 };
 
+// Signup endpoint using Firebase Auth
+exports.signup = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // Validate input
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email and password are required'
+      });
+    }
+
+    // Validate email format
+    if (!/\S+@\S+\.\S+/.test(email)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please enter a valid email address'
+      });
+    }
+
+    // Validate password length
+    if (password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 6 characters long'
+      });
+    }
+
+    // Check if signup is enabled
+    const settingsRef = service_db.collection('settings').doc('app');
+    const settingsDoc = await settingsRef.get();
+    
+    let settings = { signupEnabled: true }; // Default to enabled
+    if (settingsDoc.exists) {
+      settings = { ...settings, ...settingsDoc.data() };
+    }
+
+    if (!settings.signupEnabled) {
+      return res.status(403).json({
+        success: false,
+        message: 'User registration is currently disabled'
+      });
+    }
+
+    // Create user with Firebase Auth REST API
+    const FIREBASE_SIGNUP_URL = `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${FIREBASE_API_KEY}`;
+    
+    const response = await fetch(FIREBASE_SIGNUP_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email,
+        password,
+        returnSecureToken: true,
+        displayName: email.split('@')[0]
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      if (data.error?.message === 'EMAIL_EXISTS') {
+        return res.status(409).json({
+          success: false,
+          message: 'An account with this email already exists'
+        });
+      }
+      if (data.error?.message === 'WEAK_PASSWORD') {
+        return res.status(400).json({
+          success: false,
+          message: 'Password is too weak'
+        });
+      }
+      throw new Error(data.error?.message || 'Registration failed');
+    }
+
+    const { localId: uid, email: userEmail } = data;
+
+    // Create user in Realtime Database
+    const userId = uid;
+    const userRef = realtime_db.ref(`users/${userId}`);
+    
+    const userData = {
+      userId,
+      email: userEmail,
+      name: email.split('@')[0],
+      role: 'user',
+      createdAt: admin.database.ServerValue.TIMESTAMP,
+      firebaseUid: uid,
+      isActive: false
+    };
+
+    await userRef.set(userData);
+
+    res.status(201).json({
+      success: true,
+      message: 'Account created successfully',
+      data: {
+        user: {
+          userId,
+          email: userEmail,
+          name: email.split('@')[0],
+          role: 'user'
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error during signup:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
 // Helper function to create a user (for manual user creation)
 exports.createUser = async (req, res) => {
   try {
@@ -430,7 +550,8 @@ exports.get_settings = async (req, res) => {
       workingHours: {
         open: '08:00',
         close: '18:00'
-      }
+      },
+      signupEnabled: true
     };
 
     if (settingsDoc.exists) {
@@ -460,14 +581,6 @@ exports.get_settings = async (req, res) => {
 exports.update_settings = async (req, res) => {
   try {
     const settingsData = req.body;
-
-    // Validate required fields
-    if (!settingsData.businessName) {
-      return res.status(400).json({
-        success: false,
-        message: 'Business name is required'
-      });
-    }
 
     // Add update timestamp
     settingsData.updatedAt = admin.firestore.FieldValue.serverTimestamp();

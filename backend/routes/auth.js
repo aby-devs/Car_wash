@@ -5,6 +5,7 @@ const { verifyToken, verifyRefreshToken } = require('../middleware/auth');
 
 // Authentication routes
 router.post('/login', AuthLogic.login);
+router.post('/signup', AuthLogic.signup);
 router.post('/logout', AuthLogic.logout);
 router.post('/refresh', AuthLogic.refreshToken);
 router.get('/verify', verifyToken, AuthLogic.verifyToken);

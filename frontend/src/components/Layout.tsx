@@ -2,6 +2,7 @@ import { Outlet } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
+import { ConnectionStatus } from "./ConnectionStatus";
 import { Car, Database, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { apiService } from "@/services/api";
@@ -92,6 +93,7 @@ export function Layout() {
           </main>
         </div>
       </div>
+      <ConnectionStatus />
     </SidebarProvider>
   );
 }

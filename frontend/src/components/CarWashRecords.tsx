@@ -14,6 +14,7 @@ interface CarWashRecordsProps {
 export function CarWashRecords({ records, todayStats }: CarWashRecordsProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterPayment, setFilterPayment] = useState<"All" | "Cash" | "Mpesa">("All");
+  const [filterStatus, setFilterStatus] = useState<"All" | "active" | "completed">("All");
 
   const filteredRecords = records.filter(record => {
     const matchesSearch = record.registrationNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -21,8 +22,9 @@ export function CarWashRecords({ records, todayStats }: CarWashRecordsProps) {
                          record.attendant.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesPayment = filterPayment === "All" || record.paymentMethod === filterPayment;
+    const matchesStatus = filterStatus === "All" || record.status === filterStatus;
     
-    return matchesSearch && matchesPayment;
+    return matchesSearch && matchesPayment && matchesStatus;
   });
 
   // Enhanced analytics
@@ -134,6 +136,30 @@ export function CarWashRecords({ records, todayStats }: CarWashRecordsProps) {
               onClick={() => setFilterPayment("Mpesa")}
             >
               M-Pesa
+            </Button>
+          </div>
+          
+          <div className="flex gap-2">
+            <Button
+              variant={filterStatus === "All" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setFilterStatus("All")}
+            >
+              All Status
+            </Button>
+            <Button
+              variant={filterStatus === "completed" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setFilterStatus("completed")}
+            >
+              Completed
+            </Button>
+            <Button
+              variant={filterStatus === "active" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setFilterStatus("active")}
+            >
+              Pending
             </Button>
           </div>
         </div>

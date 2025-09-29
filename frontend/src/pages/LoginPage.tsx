@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, Link } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Car, Eye, EyeOff, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { apiService } from "@/services/api";
 
 export function LoginPage() {
   const [formData, setFormData] = useState({
@@ -17,10 +18,28 @@ export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [signupEnabled, setSignupEnabled] = useState(true);
   
   const navigate = useNavigate();
   const { toast } = useToast();
   const { login } = useAuth();
+
+  // Check if signup is enabled
+  useEffect(() => {
+    const checkSignupStatus = async () => {
+      try {
+        const response = await apiService.getSettings();
+        if (response.success && response.data) {
+          setSignupEnabled(response.data.signupEnabled !== false);
+        }
+      } catch (err) {
+        console.error('Failed to check signup status:', err);
+        setSignupEnabled(false); // Default to disabled if we can't check
+      }
+    };
+
+    checkSignupStatus();
+  }, []);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -167,12 +186,20 @@ export function LoginPage() {
               </Button>
             </form>
 
-            {/* Additional Info */}
-            <div className="text-center pt-4 border-t border-gray-100">
-              <p className="text-xs text-gray-500">
-                Contact your administrator for account access
-              </p>
-            </div>
+            {/* Sign Up Link - Only show if signup is enabled */}
+            {signupEnabled && (
+              <div className="text-center pt-4 border-t border-gray-100">
+                <p className="text-sm text-gray-600">
+                  Don't have an account?{' '}
+                  <Link 
+                    to="/signup" 
+                    className="text-primary hover:text-primary-hover font-medium transition-colors"
+                  >
+                    Sign up here
+                  </Link>
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 

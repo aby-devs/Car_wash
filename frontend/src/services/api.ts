@@ -1,8 +1,8 @@
 // API service for communicating with the backend
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-const RECORDS_BASE_URL = `${BASE_URL}/records`;
-const AUTH_BASE_URL = `${BASE_URL}/auth`;
-const STAFF_BASE_URL = `${BASE_URL}/staff`;
+const RECORDS_BASE_URL = `${BASE_URL}/api/records`;
+const AUTH_BASE_URL = `${BASE_URL}/api/auth`;
+const STAFF_BASE_URL = `${BASE_URL}/api/staff`;
 
 export interface CarWashRecord {
   id: string;
@@ -229,6 +229,18 @@ class ApiService {
     return this.request<{ 
       user: { userId: string; email: string; name: string; role: string } 
     }>('/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+      baseURL: AUTH_BASE_URL,
+    });
+  }
+
+  async signup(email: string, password: string): Promise<ApiResponse<{ 
+    user: { userId: string; email: string; name: string; role: string } 
+  }>> {
+    return this.request<{ 
+      user: { userId: string; email: string; name: string; role: string } 
+    }>('/signup', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
       baseURL: AUTH_BASE_URL,
