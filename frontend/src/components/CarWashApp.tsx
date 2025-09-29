@@ -82,6 +82,54 @@ export function CarWashApp() {
     }
   };
 
+  const handleUpdateRecord = async (recordId: string, updatedRecord: Partial<CarWashRecord>) => {
+    try {
+      const response = await apiService.updateRecord(recordId, updatedRecord);
+      if (response.success && response.data) {
+        setRecords(prev => prev.map(record => 
+          record.id === recordId ? response.data! : record
+        ));
+        
+        toast({
+          title: "Record Updated",
+          description: "Service record has been updated successfully.",
+        });
+      } else {
+        throw new Error(response.message || 'Failed to update record');
+      }
+    } catch (err) {
+      console.error('Error updating record:', err);
+      toast({
+        title: "Error Updating Record",
+        description: err instanceof Error ? err.message : 'Failed to update record',
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleDeleteRecord = async (recordId: string) => {
+    try {
+      const response = await apiService.deleteRecord(recordId);
+      if (response.success) {
+        setRecords(prev => prev.filter(record => record.id !== recordId));
+        
+        toast({
+          title: "Record Deleted",
+          description: "Service record has been deleted successfully.",
+        });
+      } else {
+        throw new Error(response.message || 'Failed to delete record');
+      }
+    } catch (err) {
+      console.error('Error deleting record:', err);
+      toast({
+        title: "Error Deleting Record",
+        description: err instanceof Error ? err.message : 'Failed to delete record',
+        variant: "destructive"
+      });
+    }
+  };
+
 
 
   const renderContent = () => {
@@ -89,7 +137,7 @@ export function CarWashApp() {
       case "dashboard":
         return <Dashboard records={records} />;
       case "add-record":
-        return <ServiceManagement records={records} onAddRecord={handleAddRecord} />;
+        return <ServiceManagement records={records} onAddRecord={handleAddRecord} onUpdateRecord={handleUpdateRecord} onDeleteRecord={handleDeleteRecord} />;
       case "records":
         return <CarWashRecords records={records} />;
       default:

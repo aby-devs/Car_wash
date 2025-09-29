@@ -9,6 +9,8 @@ export interface CarWashRecord {
   registrationNumber: string;
   carModel: string;
   services: string;
+  vehicleType?: string;
+  serviceOffered?: string;
   amountPaid: number;
   paymentMethod: 'Cash' | 'Mpesa';
   attendant: string;
@@ -17,6 +19,7 @@ export interface CarWashRecord {
   mpesaCode?: string;
   createdAt?: any;
   updatedAt?: any;
+  status: 'active' | 'completed';
 }
 
 export interface ApiResponse<T> {
@@ -151,7 +154,7 @@ class ApiService {
     return this.request<CarWashRecord>(`/${id}`, { baseURL: RECORDS_BASE_URL });
   }
 
-  async addRecord(record: Omit<CarWashRecord, 'id' | 'date' | 'time' | 'status' | 'createdAt' | 'updatedAt'>): Promise<ApiResponse<CarWashRecord>> {
+  async addRecord(record: Omit<CarWashRecord, 'id' | 'time' | 'createdAt' | 'updatedAt'>): Promise<ApiResponse<CarWashRecord>> {
     return this.request<CarWashRecord>('', {
       method: 'POST',
       body: JSON.stringify(record),

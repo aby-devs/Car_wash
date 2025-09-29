@@ -147,6 +147,27 @@ export function StaffPage() {
     }
   };
 
+  // Function to get color theme for different attendants
+  const getAttendantColor = (attendantName: string) => {
+    const colors = [
+      { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-800', accent: 'bg-blue-100' },
+      { bg: 'bg-green-50', border: 'border-green-200', text: 'text-green-800', accent: 'bg-green-100' },
+      { bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-800', accent: 'bg-purple-100' },
+      { bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-800', accent: 'bg-orange-100' },
+      { bg: 'bg-pink-50', border: 'border-pink-200', text: 'text-pink-800', accent: 'bg-pink-100' },
+      { bg: 'bg-teal-50', border: 'border-teal-200', text: 'text-teal-800', accent: 'bg-teal-100' },
+      { bg: 'bg-indigo-50', border: 'border-indigo-200', text: 'text-indigo-800', accent: 'bg-indigo-100' },
+      { bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-800', accent: 'bg-red-100' }
+    ];
+    
+    // Simple hash function to consistently assign colors to attendants
+    let hash = 0;
+    for (let i = 0; i < attendantName.length; i++) {
+      hash = attendantName.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return colors[Math.abs(hash) % colors.length];
+  };
+
   const formatCurrencyMobile = (amount: number) => {
     if (amount >= 1000) {
       return `KSh ${(amount / 1000).toFixed(1)}K`;
@@ -752,81 +773,52 @@ export function StaffPage() {
               </div>
             ) : (
               <div className="space-y-3 p-4">
-                {/* Show individual commission records */}
-                {(() => {
-                  const mobileRecords = [];
-                  commissionData.staffBreakdown.forEach(staff => {
-                    // Get all commission records for this staff member on the selected date
-                    const staffCommissions = allCommissions.filter(commission => {
-                      if (commission.attendant !== staff.attendant) return false;
-                      if (dateFilter) {
-                        try {
-                          // Direct comparison since both are now in YYYY-MM-DD format
-                          return commission.date === dateFilter;
-                        } catch (error) {
-                          return false;
-                        }
-                      }
-                      return true;
-                    });
+                {/* Show grouped staff data */}
+                {commissionData.staffBreakdown.map((staff) => (
+                  <div key={staff.attendant} className="border rounded-lg p-4 space-y-3 hover:shadow-md transition-shadow">
+                    <div className="flex justify-between items-start">
+                      <div className="font-medium text-lg">{staff.attendant}</div>
+                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                        staff.commissionRate >= 30
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {staff.commissionRate}% avg rate
+                      </span>
+                    </div>
                     
-                    // Add each commission record as a separate card
-                    staffCommissions.forEach((commission, index) => {
-                      mobileRecords.push(
-                        <div key={`${commission.attendant}-${commission.date}-${index}`} className="border rounded-lg p-4 space-y-2 hover:shadow-md transition-shadow">
-                          <div className="flex justify-between items-start">
-                            <div className="font-medium text-sm">{commission.attendant}</div>
-                            <div className="text-xs text-gray-500">{formatDateShort(commission.date)}</div>
-                          </div>
-                          <div className="text-sm text-gray-600">
-                            <span className="font-medium">Registration:</span> {commission.registrationNumber}
-                          </div>
-                          <div className="text-sm text-gray-600">
-                            <span className="font-medium">Service Amount:</span> {formatCurrency(commission.amountPaid)}
-                          </div>
-                          <div className="text-sm text-gray-600">
-                            <span className="font-medium">Commission:</span> {formatCurrency(commission.commissionAmount)}
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span className={`px-2 py-1 rounded text-xs font-medium ${
-                              commission.commissionRate >= 30
-                                ? 'bg-green-100 text-green-800' 
-                                : 'bg-yellow-100 text-yellow-800'
-                            }`}>
-                              {commission.commissionRate}%
-                            </span>
-                            <div className="flex gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleViewRecords(commission.attendant)}
-                                className="h-8 px-3 text-xs"
-                              >
-                                <Eye className="mr-1 h-3 w-3" />
-                                View
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleDeleteCommission(commission.id, commission.recordId)}
-                                disabled={deletingCommissionId === commission.id}
-                                className="h-8 px-3 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                              >
-                                {deletingCommissionId === commission.id ? (
-                                  <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                                ) : (
-                                  <Trash2 className="mr-1 h-3 w-3" />
-                                )}
-                                Delete
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    });
-                  });
-                  return mobileRecords;
-                })()}
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div className="bg-blue-50 p-3 rounded-lg">
+                        <div className="font-medium text-blue-800">Services</div>
+                        <div className="text-blue-600 font-semibold">{staff.services}</div>
+                      </div>
+                      <div className="bg-green-50 p-3 rounded-lg">
+                        <div className="font-medium text-green-800">Total Revenue</div>
+                        <div className="text-green-600 font-semibold">{formatCurrency(staff.revenue)}</div>
+                      </div>
+                      <div className="bg-orange-50 p-3 rounded-lg">
+                        <div className="font-medium text-orange-800">Commission</div>
+                        <div className="text-orange-600 font-semibold">{formatCurrency(staff.commission)}</div>
+                      </div>
+                      <div className="bg-purple-50 p-3 rounded-lg">
+                        <div className="font-medium text-purple-800">Avg Service</div>
+                        <div className="text-purple-600 font-semibold">{formatCurrency(staff.averageService)}</div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleViewRecords(staff.attendant)}
+                        className="h-8 px-3 text-sm"
+                      >
+                        <Eye className="mr-2 h-4 w-4" />
+                        View Details
+                      </Button>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -861,79 +853,44 @@ export function StaffPage() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    // Show individual commission records grouped by date and staff
-                    (() => {
-                      const recordsToShow = [];
-                      commissionData.staffBreakdown.forEach(staff => {
-                        // Get all commission records for this staff member on the selected date
-                        const staffCommissions = allCommissions.filter(commission => {
-                          if (commission.attendant !== staff.attendant) return false;
-                          if (dateFilter) {
-                            try {
-                              // Direct comparison since both are now in YYYY-MM-DD format
-                              return commission.date === dateFilter;
-                            } catch (error) {
-                              return false;
-                            }
-                          }
-                          return true;
-                        });
-                        
-                        // Add each commission record as a separate row
-                        staffCommissions.forEach((commission, index) => {
-                          recordsToShow.push(
-                            <TableRow key={`${commission.attendant}-${commission.date}-${index}`} className="hover:bg-muted/50">
-                              <TableCell className="font-medium">{formatDateShort(commission.date)}</TableCell>
-                              <TableCell className="font-medium">{commission.attendant}</TableCell>
-                              <TableCell className="font-medium">{commission.registrationNumber}</TableCell>
-                              <TableCell className="text-right font-semibold text-blue-600">
-                                {formatCurrency(commission.amountPaid)}
-                              </TableCell>
-                              <TableCell className="text-center">
-                                <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                  commission.commissionRate >= 30
-                                    ? 'bg-green-100 text-green-800' 
-                                    : 'bg-yellow-100 text-yellow-800'
-                                }`}>
-                                  {commission.commissionRate}%
-                                </span>
-                              </TableCell>
-                              <TableCell className="text-right font-semibold text-green-600">
-                                {formatCurrency(commission.commissionAmount)}
-                              </TableCell>
-                              <TableCell className="text-center">
-                                <div className="flex gap-2 justify-center">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleViewRecords(commission.attendant)}
-                                    className="h-8 px-3 text-xs"
-                                  >
-                                    <Eye className="mr-1 h-3 w-3" />
-                                    View
-                                  </Button>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleDeleteCommission(commission.id, commission.recordId)}
-                                    disabled={deletingCommissionId === commission.id}
-                                    className="h-8 px-3 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                                  >
-                                    {deletingCommissionId === commission.id ? (
-                                      <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                                    ) : (
-                                      <Trash2 className="mr-1 h-3 w-3" />
-                                    )}
-                                    Delete
-                                  </Button>
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          );
-                        });
-                      });
-                      return recordsToShow;
-                    })()
+                    // Show grouped staff data (one row per attendant)
+                    commissionData.staffBreakdown.map((staff) => (
+                      <TableRow key={staff.attendant} className="hover:bg-muted/50">
+                        <TableCell className="font-medium">
+                          {dateFilter ? formatDateShort(dateFilter) : 'Multiple Dates'}
+                        </TableCell>
+                        <TableCell className="font-medium">{staff.attendant}</TableCell>
+                        <TableCell className="font-medium">{staff.services} services</TableCell>
+                        <TableCell className="text-right font-semibold text-blue-600">
+                          {formatCurrency(staff.revenue)}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <span className={`px-2 py-1 rounded text-xs font-medium ${
+                            staff.commissionRate >= 30
+                              ? 'bg-green-100 text-green-800' 
+                              : 'bg-yellow-100 text-yellow-800'
+                          }`}>
+                            {staff.commissionRate}%
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right font-semibold text-green-600">
+                          {formatCurrency(staff.commission)}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <div className="flex gap-2 justify-center">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleViewRecords(staff.attendant)}
+                              className="h-8 px-3 text-xs"
+                            >
+                              <Eye className="mr-1 h-3 w-3" />
+                              View Details
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
                   )}
                 </TableBody>
               </Table>
@@ -944,7 +901,7 @@ export function StaffPage() {
 
       {/* Attendant Records Modal */}
       <Dialog open={showRecordsModal} onOpenChange={setShowRecordsModal}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-sm md:max-w-4xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <User className="h-5 w-5" />
@@ -963,46 +920,98 @@ export function StaffPage() {
                         </div>
           ) : attendantRecords.length > 0 ? (
             <div className="space-y-4">
-              <div className="border border-gray-300 rounded-lg overflow-hidden">
-                <table className="w-full border-collapse">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="border border-gray-300 px-4 py-3 text-left font-semibold">Registration</th>
-                      <th className="border border-gray-300 px-4 py-3 text-left font-semibold">Car Model</th>
-                      <th className="border border-gray-300 px-4 py-3 text-left font-semibold">Services</th>
-                      <th className="border border-gray-300 px-4 py-3 text-right font-semibold">Service Amount</th>
-                      <th className="border border-gray-300 px-4 py-3 text-center font-semibold">Rate</th>
-                      <th className="border border-gray-300 px-4 py-3 text-right font-semibold">Commission</th>
-                      <th className="border border-gray-300 px-4 py-3 text-center font-semibold">Date</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {attendantRecords.map((commission, index) => (
-                      <tr key={commission.id || index} className="hover:bg-gray-50">
-                        <td className="border border-gray-300 px-4 py-3 font-medium">{commission.registrationNumber}</td>
-                        <td className="border border-gray-300 px-4 py-3">{commission.carModel}</td>
-                        <td className="border border-gray-300 px-4 py-3">{commission.serviceOffered || commission.services}</td>
-                        <td className="border border-gray-300 px-4 py-3 text-right">{formatCurrency(commission.amountPaid)}</td>
-                        <td className="border border-gray-300 px-4 py-3 text-center">
-                          <span className={`px-2 py-1 rounded text-xs font-medium ${
-                            commission.commissionRate >= 30 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-yellow-100 text-yellow-800'
-                          }`}>
-                            {commission.commissionRate}%
-                          </span>
-                        </td>
-                        <td className="border border-gray-300 px-4 py-3 text-right font-semibold text-blue-600">
-                          {formatCurrency(commission.commissionAmount)}
-                        </td>
-                        <td className="border border-gray-300 px-4 py-3 text-center text-sm text-gray-600">
-                          {formatDateShort(commission.date)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              {/* Mobile Card View */}
+              <div className="block md:hidden">
+                <div className="grid grid-cols-2 gap-3">
+                  {attendantRecords.map((commission, index) => {
+                    const attendantColors = getAttendantColor(commission.attendant);
+                    return (
+                      <div key={commission.id || index} className={`border rounded-lg p-3 ${attendantColors.bg} ${attendantColors.border} border-l-4`}>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-medium text-gray-500">Registration</span>
+                            <span className="text-xs font-semibold">{commission.registrationNumber}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-medium text-gray-500">Car Model</span>
+                            <span className="text-xs">{commission.carModel}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-medium text-gray-500">Services</span>
+                            <span className="text-xs">{commission.serviceOffered || commission.services}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-medium text-gray-500">Amount</span>
+                            <span className="text-xs font-semibold">{formatCurrency(commission.amountPaid)}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-medium text-gray-500">Rate</span>
+                            <span className={`px-2 py-1 rounded text-xs font-medium ${
+                              commission.commissionRate >= 30 
+                                ? 'bg-green-100 text-green-800' 
+                                : 'bg-yellow-100 text-yellow-800'
+                            }`}>
+                              {commission.commissionRate}%
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-medium text-gray-500">Commission</span>
+                            <span className="text-xs font-bold text-blue-600">{formatCurrency(commission.commissionAmount)}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-medium text-gray-500">Date</span>
+                            <span className="text-xs text-gray-600">{formatDateShort(commission.date)}</span>
+                          </div>
+                        </div>
                       </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Desktop Table View */}
+              <div className="hidden md:block">
+                <div className="border border-gray-300 rounded-lg overflow-hidden">
+                  <table className="w-full border-collapse">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="border border-gray-300 px-4 py-3 text-left font-semibold">Registration</th>
+                        <th className="border border-gray-300 px-4 py-3 text-left font-semibold">Car Model</th>
+                        <th className="border border-gray-300 px-4 py-3 text-left font-semibold">Services</th>
+                        <th className="border border-gray-300 px-4 py-3 text-right font-semibold">Service Amount</th>
+                        <th className="border border-gray-300 px-4 py-3 text-center font-semibold">Rate</th>
+                        <th className="border border-gray-300 px-4 py-3 text-right font-semibold">Commission</th>
+                        <th className="border border-gray-300 px-4 py-3 text-center font-semibold">Date</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {attendantRecords.map((commission, index) => (
+                        <tr key={commission.id || index} className="hover:bg-gray-50">
+                          <td className="border border-gray-300 px-4 py-3 font-medium">{commission.registrationNumber}</td>
+                          <td className="border border-gray-300 px-4 py-3">{commission.carModel}</td>
+                          <td className="border border-gray-300 px-4 py-3">{commission.serviceOffered || commission.services}</td>
+                          <td className="border border-gray-300 px-4 py-3 text-right">{formatCurrency(commission.amountPaid)}</td>
+                          <td className="border border-gray-300 px-4 py-3 text-center">
+                            <span className={`px-2 py-1 rounded text-xs font-medium ${
+                              commission.commissionRate >= 30 
+                                ? 'bg-green-100 text-green-800' 
+                                : 'bg-yellow-100 text-yellow-800'
+                            }`}>
+                              {commission.commissionRate}%
+                            </span>
+                          </td>
+                          <td className="border border-gray-300 px-4 py-3 text-right font-semibold text-blue-600">
+                            {formatCurrency(commission.commissionAmount)}
+                          </td>
+                          <td className="border border-gray-300 px-4 py-3 text-center text-sm text-gray-600">
+                            {formatDateShort(commission.date)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
                       
               {/* Summary */}
               <div className="bg-gray-50 p-3 md:p-4 rounded-lg">

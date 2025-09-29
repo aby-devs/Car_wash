@@ -13,7 +13,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(cors({
-  origin: ['https://car-wash-2obw.onrender.com'],
+  origin: ['http://localhost:8082'],
   credentials: true // Allow cookies to be sent
 }));
 app.use(morgan('dev'));
