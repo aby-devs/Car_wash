@@ -2,7 +2,7 @@ import { Outlet } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
-import { Database, Loader2 } from "lucide-react";
+import { Car, Database, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { apiService } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
@@ -53,6 +53,9 @@ export function Layout() {
               <SidebarTrigger />
               
               <div className="flex items-center gap-3">
+                <div className="p-2 bg-gradient-to-r from-primary to-primary-hover rounded-lg">
+                  <Car className="h-5 w-5 text-primary-foreground" />
+                </div>
                 <div>
                   <h1 className="text-xl font-bold bg-gradient-to-r from-primary to-primary-hover bg-clip-text text-transparent">
                     AutoWash Pro
