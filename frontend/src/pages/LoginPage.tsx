@@ -206,7 +206,7 @@ export function LoginPage() {
         {/* Footer */}
         <div className="text-center mt-8">
           <p className="text-sm text-gray-500">
-            © 2024 AutoWash Pro. All rights reserved.
+            © 2025 AutoWash Pro. All rights reserved.
           </p>
         </div>
       </div>

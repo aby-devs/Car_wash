@@ -113,12 +113,39 @@ All colors MUST be HSL.
     @apply border-border;
   }
 
+  html {
+    font-family: 'Archivo', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+    overflow-x: hidden;
+  }
+
   body {
     @apply bg-background text-foreground;
     font-family: 'Archivo', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+    overflow-x: hidden;
+    max-width: 100vw;
   }
 
-  html {
-    font-family: 'Archivo', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  /* Prevent horizontal scrolling */
+  .container {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  /* Ensure all content fits within viewport */
+  .min-w-0 {
+    min-width: 0;
+  }
+
+  /* Prevent table overflow */
+  table {
+    table-layout: auto;
+    width: 100%;
+  }
+
+  /* Ensure responsive text doesn't cause overflow */
+  .truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }

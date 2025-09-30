@@ -20,7 +20,9 @@ import {
   Filter,
   Trash2,
   Download,
-  Loader2
+  Loader2,
+  BarChart3,
+  Wallet
 } from "lucide-react";
 import { apiService, StaffCommissionData } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
@@ -53,6 +55,7 @@ export function StaffPage() {
     return `${year}-${month}-${day}`;
   });
   const { toast } = useToast();
+
 
   const loadAllRecords = async () => {
     setLoading(true);

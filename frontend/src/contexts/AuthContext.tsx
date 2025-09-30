@@ -15,7 +15,7 @@ interface AuthContextType {
   loading: boolean;
   initialized: boolean;
   login: (email: string, password: string) => Promise<boolean>;
-  signup: (email: string, password: string) => Promise<boolean>;
+  signup: (email: string, password: string, role?: string) => Promise<boolean>;
   logout: () => Promise<void>;
   refreshAuthToken: () => Promise<boolean>;
   isAuthenticated: boolean;
@@ -44,8 +44,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        
-        // Try to verify the token first
+        // First, try to verify the token
         try {
           const response = await apiService.verifyToken();
           if (response.success && response.data) {
@@ -55,14 +54,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             return;
           }
         } catch (verifyError) {
-          // Token verification failed, will try to refresh
+          console.log('Token verification failed, trying refresh...');
+          // Token verification failed, try to refresh
         }
 
         // If verify failed, try to refresh the token
-        const refreshSuccess = await refreshAuthToken();
-        if (refreshSuccess) {
-          setUser(null);
+        try {
+          const refreshSuccess = await refreshAuthToken();
+          if (refreshSuccess) {
+            // Refresh was successful, user should be set in refreshAuthToken
+            setLoading(false);
+            setInitialized(true);
+            return;
+          }
+        } catch (refreshError) {
+          console.log('Token refresh failed, user not authenticated');
+          // Both verify and refresh failed, user is not authenticated
         }
+
+        // If both verify and refresh failed, user is not authenticated
+        setUser(null);
         setLoading(false);
         setInitialized(true);
       } catch (error) {
@@ -89,17 +100,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           const verifyResponse = await apiService.verifyToken();
           if (verifyResponse.success && verifyResponse.data) {
             setUser(verifyResponse.data.user);
+            return true;
           }
         } catch (verifyError) {
           console.error('Failed to get user data after refresh:', verifyError);
+          return false;
         }
         return true;
       } else {
-        console.error('Token refresh failed:', response.message);
+        console.log('Token refresh failed:', response.message);
         return false;
       }
     } catch (error) {
-      console.error('Token refresh failed with error:', error);
+      console.log('Token refresh failed with error:', error);
       return false;
     }
   };
@@ -111,21 +124,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (response.success && response.data) {
         setUser(response.data.user);
         return true;
+      } else {
+        console.error('Login failed:', response.message);
+        return false;
       }
     } catch (error) {
       console.error('AuthContext: Login failed:', error);
+      return false;
     }
-    return false;
   };
 
-  const signup = async (email: string, password: string): Promise<boolean> => {
+  const signup = async (email: string, password: string, role?: string): Promise<boolean> => {
     try {
-      const response = await apiService.signup(email, password);
-      return response.success;
+      const response = await apiService.signup(email, password, role);
+      if (response.success) {
+        return true;
+      } else {
+        console.error('Signup failed:', response.message);
+        return false;
+      }
     } catch (error) {
       console.error('AuthContext: Signup failed:', error);
+      return false;
     }
-    return false;
   };
 
   const logout = async (): Promise<void> => {
@@ -153,8 +174,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     const testBackend = async () => {
       try {
-        const response = await fetch(`${BASE_URL}/api/auth/health`);
+        const response = await fetch(`${BASE_URL}/api/auth/health`, {
+          credentials: 'include'
+        });
         const data = await response.json();
+        console.log('Backend health check:', data);
       } catch (error) {
         console.error('Backend health check failed:', error);
       }

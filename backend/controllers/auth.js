@@ -95,16 +95,22 @@ exports.login = async (req, res) => {
     const userRef = realtime_db.ref(`users/${userId}`);
     const userSnapshot = await userRef.once('value');
     
+    let userRole = 'supervisor'; // Default role
+    
     if (!userSnapshot.exists()) {
       // Create user in Realtime Database if they don't exist
       await userRef.set({
         userId,
         email: userEmail,
         name: displayName || userEmail.split('@')[0],
-        role: 'user', // Default role, you can customize this
+        role: 'supervisor', // Default role for new users
         createdAt: admin.database.ServerValue.TIMESTAMP,
         firebaseUid: uid
       });
+    } else {
+      // Get the user's role from the database
+      const userData = userSnapshot.val();
+      userRole = userData.role || 'supervisor';
     }
 
     // Store refresh token in separate node
@@ -148,7 +154,7 @@ exports.login = async (req, res) => {
           userId,
           email: userEmail,
           name: displayName || userEmail.split('@')[0],
-          role: 'user'
+          role: userRole
         }
       }
     });
@@ -278,6 +284,7 @@ exports.refreshToken = async (req, res) => {
     }
 
     const userData = userSnapshot.val();
+    const userRole = userData.role || 'supervisor';
 
     // Generate new tokens
     const { accessToken, refreshToken: newRefreshToken } = generateTokens(userData.userId, decoded.email);
@@ -331,11 +338,25 @@ exports.verifyToken = async (req, res) => {
   try {
     // This endpoint is protected by the verifyToken middleware
     // If we reach here, the token is valid
+    // Get user data from database to include role
+    const userId = req.user.userId;
+    const userRef = realtime_db.ref(`users/${userId}`);
+    const userSnapshot = await userRef.once('value');
+    
+    let userData = req.user;
+    if (userSnapshot.exists()) {
+      const dbUserData = userSnapshot.val();
+      userData = {
+        ...req.user,
+        role: dbUserData.role || 'supervisor'
+      };
+    }
+    
     res.status(200).json({
       success: true,
       message: 'Token is valid',
       data: {
-        user: req.user
+        user: userData
       }
     });
 
@@ -352,7 +373,7 @@ exports.verifyToken = async (req, res) => {
 // Signup endpoint using Firebase Auth
 exports.signup = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, role = 'supervisor' } = req.body;
 
     // Validate input
     if (!email || !password) {
@@ -375,6 +396,14 @@ exports.signup = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Password must be at least 6 characters long'
+      });
+    }
+
+    // Validate role
+    if (role && !['manager', 'supervisor'].includes(role)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid role. Must be either manager or supervisor'
       });
     }
 
@@ -438,7 +467,7 @@ exports.signup = async (req, res) => {
       userId,
       email: userEmail,
       name: email.split('@')[0],
-      role: 'user',
+      role: role || 'supervisor',
       createdAt: admin.database.ServerValue.TIMESTAMP,
       firebaseUid: uid,
       isActive: false
@@ -454,7 +483,7 @@ exports.signup = async (req, res) => {
           userId,
           email: userEmail,
           name: email.split('@')[0],
-          role: 'user'
+          role: role || 'supervisor'
         }
       }
     });
@@ -602,5 +631,219 @@ exports.update_settings = async (req, res) => {
       error: error.message
     });
   }
+};
+
+// Test realtime database connection
+exports.testRealtimeDB = async (req, res) => {
+  try {
+    console.log('Testing realtime database connection...');
+    
+    // Test basic connection
+    const testRef = realtime_db.ref('test');
+    await testRef.set({ message: 'Test connection', timestamp: Date.now() });
+    
+    const testSnapshot = await testRef.once('value');
+    const testData = testSnapshot.val();
+    
+    console.log('Realtime DB test data:', testData);
+    
+    // Clean up test data
+    await testRef.remove();
+    
+    res.status(200).json({
+      success: true,
+      message: 'Realtime database connection successful',
+      data: testData
+    });
+  } catch (error) {
+    console.error('Realtime database test failed:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Realtime database connection failed',
+      error: error.message
+    });
+  }
+};
+
+// Get all users (manager only)
+exports.getUsers = async (req, res) => {
+  try {
+    console.log('Fetching users from realtime database...');
+    
+    // First, let's check if we can access the database at all
+    try {
+      const testRef = realtime_db.ref('test');
+      await testRef.set({ test: true });
+      await testRef.remove();
+      console.log('Realtime database connection is working');
+    } catch (dbError) {
+      console.error('Realtime database connection failed:', dbError);
+      return res.status(500).json({
+        success: false,
+        message: 'Database connection failed',
+        error: dbError.message
+      });
+    }
+    
+    const usersSnapshot = await realtime_db.ref('users').once('value');
+    const users = [];
+    
+    console.log('Users snapshot exists:', usersSnapshot.exists());
+    console.log('Users snapshot size:', usersSnapshot.numChildren());
+    
+    if (usersSnapshot.exists()) {
+      usersSnapshot.forEach((childSnapshot) => {
+        const userData = childSnapshot.val();
+        console.log('User data:', childSnapshot.key, userData);
+        users.push({
+          userId: childSnapshot.key,
+          ...userData
+        });
+      });
+    } else {
+      console.log('No users found in database. This might be because:');
+      console.log('1. No users have logged in yet');
+      console.log('2. Users are stored in a different location');
+      console.log('3. Database URL is not configured properly');
+    }
+
+    console.log('Total users found:', users.length);
+
+    res.status(200).json({
+      success: true,
+      message: 'Users retrieved successfully',
+      data: users
+    });
+  } catch (error) {
+    console.error('Error getting users:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
+// Update user role (manager only)
+exports.updateUserRole = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { role } = req.body;
+
+    if (!role || !['manager', 'supervisor'].includes(role)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Valid role (manager or supervisor) is required'
+      });
+    }
+
+    // Check if user exists
+    const userRef = realtime_db.ref(`users/${userId}`);
+    const userSnapshot = await userRef.once('value');
+    
+    if (!userSnapshot.exists()) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Update user role
+    await userRef.update({
+      role,
+      updatedAt: admin.database.ServerValue.TIMESTAMP
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'User role updated successfully'
+    });
+  } catch (error) {
+    console.error('Error updating user role:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
+// Delete user (manager only)
+exports.deleteUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // Check if user exists
+    const userRef = realtime_db.ref(`users/${userId}`);
+    const userSnapshot = await userRef.once('value');
+    
+    if (!userSnapshot.exists()) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Prevent deleting own account
+    if (userId === req.user.userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot delete your own account'
+      });
+    }
+
+    const userData = userSnapshot.val();
+    const userEmail = userData.email;
+
+    // Delete user from Firebase Authentication
+    try {
+      if (userEmail) {
+        // Get user by email from Firebase Auth
+        const userRecord = await admin.auth().getUserByEmail(userEmail);
+        if (userRecord) {
+          await admin.auth().deleteUser(userRecord.uid);
+          console.log(`User ${userEmail} deleted from Firebase Authentication`);
+        }
+      }
+    } catch (authError) {
+      console.error('Error deleting user from Firebase Auth:', authError);
+      // Continue with database deletion even if auth deletion fails
+    }
+
+    // Delete user from Realtime Database
+    await userRef.remove();
+
+    // Delete user's refresh tokens
+    const refreshTokenRef = realtime_db.ref(`refreshTokens/${userId}`);
+    await refreshTokenRef.remove();
+
+    res.status(200).json({
+      success: true,
+      message: 'User deleted successfully from both database and authentication'
+    });
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
+// Export all functions
+module.exports = {
+  login: exports.login,
+  signup: exports.signup,
+  logout: exports.logout,
+  refreshToken: exports.refreshToken,
+  verifyToken: exports.verifyToken,
+  createUser: exports.createUser,
+  get_settings: exports.get_settings,
+  update_settings: exports.update_settings,
+  getUsers: exports.getUsers,
+  updateUserRole: exports.updateUserRole,
+  deleteUser: exports.deleteUser,
+  testRealtimeDB: exports.testRealtimeDB
 };
 

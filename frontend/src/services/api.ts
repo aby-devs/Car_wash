@@ -14,6 +14,8 @@ export interface CarWashRecord {
   amountPaid: number;
   paymentMethod: 'Cash' | 'Mpesa';
   attendant: string;
+  supervisorAccount?: string; // User account that created this record
+  supervisorName?: string; // Name of the supervisor account
   date: string;
   time: string;
   mpesaCode?: string;
@@ -115,9 +117,26 @@ class ApiService {
 
     try {
       const response = await fetch(url, { ...defaultOptions, ...fetchOptions });
-      const data = await response.json();
+      
+      // Handle different response types
+      let data;
+      try {
+        data = await response.json();
+      } catch (jsonError) {
+        console.error('Failed to parse JSON response:', jsonError);
+        // If response is not JSON, create a generic error response
+        data = {
+          success: false,
+          message: `HTTP error! status: ${response.status}`,
+          error: response.statusText
+        };
+      }
 
       if (!response.ok) {
+        // Don't throw for 401/400 errors in auth endpoints - let the calling code handle them
+        if (endpoint.includes('/auth/') && (response.status === 401 || response.status === 400)) {
+          return data;
+        }
         throw new Error(data.message || `HTTP error! status: ${response.status}`);
       }
 
@@ -235,14 +254,14 @@ class ApiService {
     });
   }
 
-  async signup(email: string, password: string): Promise<ApiResponse<{ 
+  async signup(email: string, password: string, role?: string): Promise<ApiResponse<{ 
     user: { userId: string; email: string; name: string; role: string } 
   }>> {
     return this.request<{ 
       user: { userId: string; email: string; name: string; role: string } 
     }>('/signup', {
       method: 'POST',
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, role }),
       baseURL: AUTH_BASE_URL,
     });
   }
@@ -302,6 +321,26 @@ class ApiService {
     
     const endpoint = `/summary${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
     return this.request<StaffSummaryData>(endpoint, { baseURL: STAFF_BASE_URL });
+  }
+
+  // User management API
+  async getUsers(): Promise<ApiResponse<any[]>> {
+    return this.request<any[]>('/users', { baseURL: AUTH_BASE_URL });
+  }
+
+  async updateUserRole(userId: string, role: string): Promise<ApiResponse<any>> {
+    return this.request(`/users/${userId}/role`, {
+      method: 'PUT',
+      body: JSON.stringify({ role }),
+      baseURL: AUTH_BASE_URL,
+    });
+  }
+
+  async deleteUser(userId: string): Promise<ApiResponse<any>> {
+    return this.request(`/users/${userId}`, {
+      method: 'DELETE',
+      baseURL: AUTH_BASE_URL,
+    });
   }
 
   // Health check

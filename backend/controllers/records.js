@@ -65,6 +65,7 @@ exports.add_record = async (req, res) => {
     } = req.body;
 
 
+
     // Validate required fields
     if (!registrationNumber || !carModel || !services || !attendant) {
       return res.status(400).json({
@@ -86,6 +87,8 @@ exports.add_record = async (req, res) => {
 
     // Create record data
     const now = new Date();
+    const finalDate = date || now.toISOString().split('T')[0];
+    
     const recordData = {
       id: serviceOrderId,
       registrationNumber: registrationNumber.trim().toUpperCase(),
@@ -96,7 +99,7 @@ exports.add_record = async (req, res) => {
       amountPaid: amountPaid ? parseFloat(amountPaid) : 0,
       paymentMethod: paymentMethod || 'Cash', // Default to Cash if not provided
       attendant: attendant.trim(),
-      date: date || now.toISOString().split('T')[0], // Use provided date or current date in YYYY-MM-DD format
+      date: finalDate, // Use provided date or current date in YYYY-MM-DD format
       time: now.toLocaleTimeString(),
       status: req.body.status || (amountPaid > 0 ? 'completed' : 'active'), // Set status based on payment
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -148,23 +151,19 @@ exports.get_records = async (req, res) => {
   try {
     const { paymentMethod, attendant, startDate, endDate, limit = 100 } = req.query;
     
-    
     let query = service_db.collection('records');
 
     // Apply filters - prioritize date range first, then other filters
     if (startDate) {
-      const start = new Date(startDate);
-      query = query.where('createdAt', '>=', start);
+      query = query.where('date', '>=', startDate);
     }
     
     if (endDate) {
-      const end = new Date(endDate);
-      end.setHours(23, 59, 59, 999); // End of day
-      query = query.where('createdAt', '<=', end);
+      query = query.where('date', '<=', endDate);
     }
 
-    // Order by creation date (newest first) and limit
-    query = query.orderBy('createdAt', 'desc').limit(parseInt(limit));
+    // Order by date (newest first) and limit
+    query = query.orderBy('date', 'desc').limit(parseInt(limit));
 
     const snapshot = await query.get();
     let records = [];
@@ -317,9 +316,7 @@ exports.update_record = async (req, res) => {
           };
           
           await service_db.collection('commissions').add(commissionData);
-          console.log(`Commission created for record ${id}: ${commissionAmount} (${commissionRate}% of ${updatedRecord.amountPaid})`);
         } else {
-          console.log(`Commission already exists for record ${id}, skipping creation`);
         }
       } catch (commissionError) {
         console.error('Error saving commission on update:', commissionError);
@@ -737,7 +734,6 @@ exports.get_dashboard_stats = async (req, res) => {
 // Clean up duplicate commission records
 exports.cleanup_duplicate_commissions = async (req, res) => {
   try {
-    console.log('Starting cleanup of duplicate commission records...');
     
     // Get all commission records
     const commissionsSnapshot = await service_db.collection('commissions').get();
@@ -767,7 +763,6 @@ exports.cleanup_duplicate_commissions = async (req, res) => {
     
     for (const [recordId, commissionList] of recordIdMap.entries()) {
       if (commissionList.length > 1) {
-        console.log(`Found ${commissionList.length} commissions for record ${recordId}`);
         duplicateRecordIds.push(recordId);
         
         // Sort by creation date (keep the oldest one)
@@ -781,7 +776,6 @@ exports.cleanup_duplicate_commissions = async (req, res) => {
         for (let i = 1; i < commissionList.length; i++) {
           await service_db.collection('commissions').doc(commissionList[i].id).delete();
           duplicatesRemoved++;
-          console.log(`Removed duplicate commission ${commissionList[i].id} for record ${recordId}`);
         }
       }
     }
@@ -805,6 +799,7 @@ exports.cleanup_duplicate_commissions = async (req, res) => {
     });
   }
 };
+
 
 // Search records
 exports.search_records = async (req, res) => {

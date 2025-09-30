@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { AuthLogic } = require('../controllers');
-const { verifyToken, verifyRefreshToken } = require('../middleware/auth');
+const { verifyToken, verifyRefreshToken, requireManager } = require('../middleware/auth');
 
 // Authentication routes
 router.post('/login', AuthLogic.login);
@@ -14,6 +14,14 @@ router.post('/create-user', AuthLogic.createUser); // For manual user creation
 // Settings routes
 router.get('/settings', AuthLogic.get_settings);
 router.put('/settings', AuthLogic.update_settings);
+
+// User management routes (manager only)
+router.get('/users', verifyToken, requireManager, AuthLogic.getUsers);
+router.put('/users/:userId/role', verifyToken, requireManager, AuthLogic.updateUserRole);
+router.delete('/users/:userId', verifyToken, requireManager, AuthLogic.deleteUser);
+
+// Test routes
+router.get('/test-realtime', AuthLogic.testRealtimeDB);
 
 // Health check route
 router.get('/health', (req, res) => {

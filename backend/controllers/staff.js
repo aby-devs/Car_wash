@@ -12,16 +12,10 @@ exports.get_staff_commission = async (req, res) => {
       });
     }
 
-    // Parse the date and create start/end of day timestamps
-    const targetDate = new Date(date);
-    const startOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
-    const endOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59, 999);
-
     // Get all records for the specified date
     const snapshot = await service_db.collection('records')
-      .where('createdAt', '>=', startOfDay)
-      .where('createdAt', '<=', endOfDay)
-      .orderBy('createdAt', 'desc')
+      .where('date', '==', date)
+      .orderBy('date', 'desc')
       .get();
 
     const records = [];
@@ -108,14 +102,10 @@ exports.get_staff_summary = async (req, res) => {
       });
     } else if (startDate && endDate) {
       // Date range filtering
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-      end.setHours(23, 59, 59, 999);
-      
       const snapshot = await query
-        .where('createdAt', '>=', start)
-        .where('createdAt', '<=', end)
-        .orderBy('createdAt', 'desc')
+        .where('date', '>=', startDate)
+        .where('date', '<=', endDate)
+        .orderBy('date', 'desc')
         .get();
       
       snapshot.forEach(doc => {
@@ -126,14 +116,11 @@ exports.get_staff_summary = async (req, res) => {
       });
     } else {
       // Single date filtering
-      const targetDate = new Date(startDate || endDate);
-      const startOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
-      const endOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59, 999);
+      const targetDate = startDate || endDate;
       
       const snapshot = await query
-        .where('createdAt', '>=', startOfDay)
-        .where('createdAt', '<=', endOfDay)
-        .orderBy('createdAt', 'desc')
+        .where('date', '==', targetDate)
+        .orderBy('date', 'desc')
         .get();
       
       snapshot.forEach(doc => {

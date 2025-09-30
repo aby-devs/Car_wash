@@ -150,8 +150,37 @@ const verifyRefreshToken = async (req, res, next) => {
   }
 };
 
+// Middleware to check if user has manager role
+const requireManager = (req, res, next) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required'
+      });
+    }
+
+    if (req.user.role !== 'manager') {
+      return res.status(403).json({
+        success: false,
+        message: 'Manager role required for this action'
+      });
+    }
+
+    next();
+  } catch (error) {
+    console.error('Role check error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Role verification failed',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   verifyToken,
   verifyRefreshToken,
+  requireManager,
   JWT_SECRET
 };

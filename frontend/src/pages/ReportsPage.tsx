@@ -165,15 +165,22 @@ export function ReportsPage() {
     
     // If specific month is selected - always use current year
     if (filters.selectedMonth && filters.selectedMonth !== 'all') {
-      const month = parseInt(filters.selectedMonth);
-      const startOfMonth = new Date(currentYear, month - 1, 1);
-      const endOfMonth = new Date(currentYear, month, 0);
+        const month = parseInt(filters.selectedMonth);
+        // Use UTC to avoid timezone issues
+        const startOfMonth = new Date(Date.UTC(currentYear, month - 1, 1));
+        const endOfMonth = new Date(Date.UTC(currentYear, month, 0)); // Last day of the selected month
+        endOfMonth.setUTCHours(23, 59, 59, 999); // Include the full last day
       
-      return {
-        startDate: startOfMonth.toISOString().split('T')[0],
-        endDate: endOfMonth.toISOString().split('T')[0]
-      };
-    }
+        const dateRange = {
+          startDate: startOfMonth.toISOString().split('T')[0],
+          endDate: endOfMonth.toISOString().split('T')[0]
+        };
+        
+        
+        return dateRange;
+      }
+      
+    
     
     // Default to full report
     return {
@@ -217,10 +224,10 @@ export function ReportsPage() {
       if (dateRange.startDate) apiParams.startDate = dateRange.startDate;
       if (dateRange.endDate) apiParams.endDate = dateRange.endDate;
       
-      
       const response = await apiService.getRecords(apiParams);
       
       if (response.success && response.data) {
+        
         setRecords(response.data);
         calculateAnalytics(response.data);
       } else {

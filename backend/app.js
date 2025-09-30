@@ -22,8 +22,13 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(cors({
-  origin: ['https://car-wash-2obw.onrender.com'],
-  credentials: true // Allow cookies to be sent
+  origin: [
+    'https://car-wash-2obw.onrender.com',
+  ],
+  credentials: true, // Allow cookies to be sent
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
+  exposedHeaders: ['Set-Cookie']
 }));
 app.use(morgan('dev'));
 app.use(express.static(path.join(__dirname, 'dist')));

@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2, Eye, EyeOff, Shield } from 'lucide-react';
 import { apiService } from '@/services/api';
@@ -13,7 +14,8 @@ const SignupPage: React.FC = () => {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    role: 'supervisor' as 'manager' | 'supervisor'
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -88,7 +90,7 @@ const SignupPage: React.FC = () => {
     setError('');
 
     try {
-      const success = await signup(formData.email, formData.password);
+      const success = await signup(formData.email, formData.password, formData.role);
       
       if (success) {
         setSuccess(true);
@@ -260,6 +262,26 @@ const SignupPage: React.FC = () => {
                   )}
                 </Button>
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="role">Role</Label>
+              <Select
+                value={formData.role}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, role: value as 'manager' | 'supervisor' }))}
+                disabled={loading}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select your role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="supervisor">Supervisor</SelectItem>
+                  <SelectItem value="manager">Manager</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Managers can delete transactions, supervisors cannot.
+              </p>
             </div>
 
             <Button type="submit" className="w-full" disabled={loading}>

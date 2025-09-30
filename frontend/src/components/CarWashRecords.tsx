@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Search, Calendar, User, Car, CreditCard, Clock, Filter } from "lucide-react";
 import { CarWashRecord, DashboardStats } from "./CarWashRecord";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface CarWashRecordsProps {
   records: CarWashRecord[];
@@ -12,9 +13,14 @@ interface CarWashRecordsProps {
 }
 
 export function CarWashRecords({ records, todayStats }: CarWashRecordsProps) {
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterPayment, setFilterPayment] = useState<"All" | "Cash" | "Mpesa">("All");
   const [filterStatus, setFilterStatus] = useState<"All" | "active" | "completed">("All");
+  const [showMyRecordsOnly, setShowMyRecordsOnly] = useState(false);
+  
+  // Check if user can delete records (only managers)
+  const canDelete = user?.role === 'manager';
 
   const filteredRecords = records.filter(record => {
     const matchesSearch = record.registrationNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -24,7 +30,12 @@ export function CarWashRecords({ records, todayStats }: CarWashRecordsProps) {
     const matchesPayment = filterPayment === "All" || record.paymentMethod === filterPayment;
     const matchesStatus = filterStatus === "All" || record.status === filterStatus;
     
-    return matchesSearch && matchesPayment && matchesStatus;
+    // Filter for current supervisor's records only if enabled
+    const matchesMyRecords = !showMyRecordsOnly || 
+                           (user?.name && record.attendant.toLowerCase() === user.name.toLowerCase()) ||
+                           (user?.email && record.attendant.toLowerCase() === user.email.toLowerCase());
+    
+    return matchesSearch && matchesPayment && matchesStatus && matchesMyRecords;
   });
 
   // Enhanced analytics
@@ -162,7 +173,65 @@ export function CarWashRecords({ records, todayStats }: CarWashRecordsProps) {
               Pending
             </Button>
           </div>
+          
+          {/* My Records Only Toggle - Only show for supervisors */}
+          {user?.role === 'supervisor' && (
+            <div className="flex gap-2">
+              <Button
+                variant={showMyRecordsOnly ? "default" : "outline"}
+                size="sm"
+                onClick={() => setShowMyRecordsOnly(!showMyRecordsOnly)}
+                className="flex items-center gap-2"
+              >
+                <User className="h-4 w-4" />
+                {showMyRecordsOnly ? "My Records" : "All Records"}
+              </Button>
+            </div>
+          )}
         </div>
+
+        {/* My Records Payment Summary - Only show when "My Records" is enabled */}
+        {showMyRecordsOnly && user?.role === 'supervisor' && (
+          <Card className="mb-6 border-primary/20 bg-primary/5">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <User className="h-5 w-5 text-primary" />
+                My Payment Summary
+              </CardTitle>
+              <CardDescription>
+                Payments recorded by {user.name || user.email}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="text-center p-3 bg-white rounded-lg border">
+                  <div className="text-2xl font-bold text-primary">
+                    {filteredRecords.length}
+                  </div>
+                  <div className="text-sm text-muted-foreground">Total Records</div>
+                </div>
+                <div className="text-center p-3 bg-white rounded-lg border">
+                  <div className="text-2xl font-bold text-green-600">
+                    KSh {filteredRecords.reduce((sum, r) => sum + r.amountPaid, 0).toLocaleString()}
+                  </div>
+                  <div className="text-sm text-muted-foreground">Total Revenue</div>
+                </div>
+                <div className="text-center p-3 bg-white rounded-lg border">
+                  <div className="text-2xl font-bold text-blue-600">
+                    {filteredRecords.filter(r => r.paymentMethod === 'Cash').length}
+                  </div>
+                  <div className="text-sm text-muted-foreground">Cash Payments</div>
+                </div>
+                <div className="text-center p-3 bg-white rounded-lg border">
+                  <div className="text-2xl font-bold text-green-600">
+                    {filteredRecords.filter(r => r.paymentMethod === 'Mpesa').length}
+                  </div>
+                  <div className="text-sm text-muted-foreground">M-Pesa Payments</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Payment Method Analytics */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">

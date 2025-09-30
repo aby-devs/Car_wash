@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Car, CreditCard, User, Search, Filter, Edit, Trash2, X, DollarSign, Download, Loader2, Calendar } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiService } from "@/services/api";
+import { useAuth } from "@/contexts/AuthContext";
 import * as XLSX from 'xlsx';
 
 export interface CarWashRecord {
@@ -22,6 +23,8 @@ export interface CarWashRecord {
   amountPaid: number;
   paymentMethod: 'Cash' | 'Mpesa';
   attendant: string;
+  supervisorAccount?: string; // User account that created this record
+  supervisorName?: string; // Name of the supervisor account
   date: string;
   time: string;
   mpesaCode?: string;
@@ -86,6 +89,10 @@ interface ServiceManagementProps {
 
 export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDeleteRecord }: ServiceManagementProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
+  
+  // Check if user can delete records (only managers)
+  const canDelete = user?.role === 'manager';
   const [showForm, setShowForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState(() => {
@@ -166,6 +173,16 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
       }));
     }
   }, [dateFilter]);
+
+  // Auto-populate attendant field with current user's name
+  useEffect(() => {
+    if (user?.name && !formData.attendant) {
+      setFormData(prev => ({
+        ...prev,
+        attendant: user.name
+      }));
+    }
+  }, [user?.name, formData.attendant]);
 
   // Separate active and completed services from database records
   useEffect(() => {
@@ -276,6 +293,9 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
       }
 
       // Create active service record (no payment yet)
+      console.log('Creating record with date:', formData.date);
+      console.log('Current system date:', new Date().toISOString().split('T')[0]);
+      
       const activeServiceRecord: Omit<CarWashRecord, 'id' | 'time' | 'createdAt' | 'updatedAt'> = {
         registrationNumber: formData.registrationNumber,
         carModel: formData.carModel,
@@ -285,6 +305,8 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
         amountPaid: 0, // Will be set when payment is processed
         paymentMethod: 'Cash' as 'Cash' | 'Mpesa', // Default, will be updated during payment
         attendant: formData.attendant,
+        supervisorAccount: user?.email || user?.name || 'unknown',
+        supervisorName: user?.name || user?.email || 'unknown',
         date: formData.date,
         status: 'active' as 'active' | 'completed'
       };
@@ -433,6 +455,8 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
         amountPaid: parseFloat(paymentFormData.amountPaid),
         paymentMethod: paymentFormData.paymentMethod as 'Cash' | 'Mpesa',
         attendant: selectedActiveService.attendant,
+        supervisorAccount: user?.email || user?.name || 'unknown',
+        supervisorName: user?.name || user?.email || 'unknown',
         date: selectedActiveService.date,
         status: 'completed',
         ...(paymentFormData.paymentMethod === 'Mpesa' && paymentFormData.mpesaCode && { mpesaCode: paymentFormData.mpesaCode })
@@ -1033,15 +1057,17 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
                         <Edit className="mr-1 h-3 w-3" />
                         Edit
                       </Button>
-                      <Button
-                        onClick={() => handleDeleteActiveService(service)}
-                        variant="outline"
-                        size="sm"
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                      >
-                        <Trash2 className="mr-1 h-3 w-3" />
-                        Delete
-                      </Button>
+                      {canDelete && (
+                        <Button
+                          onClick={() => handleDeleteActiveService(service)}
+                          variant="outline"
+                          size="sm"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <Trash2 className="mr-1 h-3 w-3" />
+                          Delete
+                        </Button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -1106,14 +1132,16 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <Button
-                            onClick={() => handleDeleteActiveService(service)}
-                            variant="outline"
-                            size="sm"
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {canDelete && (
+                            <Button
+                              onClick={() => handleDeleteActiveService(service)}
+                              variant="outline"
+                              size="sm"
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -1162,7 +1190,7 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
                   />
                 </div>
                 <Select value={paymentFilter} onValueChange={setPaymentFilter}>
-                  <SelectTrigger className="w-[140px] border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                  <SelectTrigger className="w-full sm:w-32 border-gray-300 focus:border-blue-500 focus:ring-blue-500">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1208,7 +1236,14 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
                           {record.paymentMethod}
                         </Badge>
                       </div>
-                      <span className="text-sm text-gray-600">👤 {record.attendant}</span>
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <span>👤 {record.attendant}</span>
+                        {record.supervisorName && (
+                          <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                            📝 {record.supervisorName}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     {record.mpesaCode && (
                       <div className="text-sm font-mono text-gray-600">
@@ -1235,13 +1270,14 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
                   <TableHead className="font-semibold py-4 px-4 text-center">Payment</TableHead>
                   <TableHead className="font-semibold py-4 px-4 text-center">M-Pesa Code</TableHead>
                   <TableHead className="font-semibold py-4 px-4">Attendant</TableHead>
+                  <TableHead className="font-semibold py-4 px-4">Supervisor</TableHead>
                   <TableHead className="font-semibold py-4 px-4 text-center">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredCompletedServices.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center py-12 text-muted-foreground">
+                    <TableCell colSpan={11} className="text-center py-12 text-muted-foreground">
                       <div className="text-6xl mb-4">✅</div>
                       <div className="text-lg font-semibold mb-2">No Completed Services</div>
                       <div className="text-sm mb-2">Completed services will appear here</div>
@@ -1274,6 +1310,17 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
                         {record.mpesaCode || '-'}
                       </TableCell>
                       <TableCell className="py-4 px-4">{record.attendant}</TableCell>
+                      <TableCell className="py-4 px-4">
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-xs font-bold">
+                            {record.supervisorName?.charAt(0) || record.supervisorAccount?.charAt(0) || 'U'}
+                          </div>
+                          <div>
+                            <div className="text-sm font-medium">{record.supervisorName || 'Unknown'}</div>
+                            <div className="text-xs text-muted-foreground">{record.supervisorAccount || 'No account'}</div>
+                          </div>
+                        </div>
+                      </TableCell>
                       <TableCell className="py-4 px-4 text-center">
                         <div className="flex justify-center gap-2">
                           <Button
@@ -1284,19 +1331,21 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDeleteRecord(record.id)}
-                            disabled={deletingRecordId === record.id}
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                          >
-                            {deletingRecordId === record.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Trash2 className="h-4 w-4" />
-                            )}
-                          </Button>
+                          {canDelete && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDeleteRecord(record.id)}
+                              disabled={deletingRecordId === record.id}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              {deletingRecordId === record.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-4 w-4" />
+                              )}
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -1512,6 +1561,24 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
                     </Select>
                   </div>
 
+                  <div className="space-y-2">
+                    <Label htmlFor="supervisor" className="text-sm font-medium text-gray-700">
+                      Supervisor (Recorded By) *
+                    </Label>
+                    <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-md border">
+                      <div className="w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-sm font-bold">
+                        {user?.name?.charAt(0) || user?.email?.charAt(0) || 'U'}
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">{user?.name || 'Unknown'}</p>
+                        <p className="text-xs text-muted-foreground">{user?.email || 'No email'}</p>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      This record will be attributed to your supervisor account
+                    </p>
+                  </div>
+
                 </div>
 
                 <div className="flex justify-end pt-4">
@@ -1584,6 +1651,17 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
                 <div className="mt-2">
                   <span className="font-medium text-sm">Services:</span>
                   <div className="text-sm text-gray-600">{selectedActiveService.serviceOffered.join(', ')}</div>
+                </div>
+                <div className="mt-3 pt-2 border-t border-gray-200">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-xs font-bold">
+                      {user?.name?.charAt(0) || user?.email?.charAt(0) || 'U'}
+                    </div>
+                    <div>
+                      <span className="font-medium text-sm">Recorded by:</span>
+                      <div className="text-sm text-gray-600">{user?.name || 'Unknown'} ({user?.email || 'No email'})</div>
+                    </div>
+                  </div>
                 </div>
               </div>
 

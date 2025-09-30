@@ -5,14 +5,17 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { RoleProtectedRoute } from "@/components/RoleProtectedRoute";
 import { Layout } from "@/components/Layout";
 import { DashboardPage } from "@/pages/DashboardPage";
-import { ReportsPage } from "@/pages/ReportsPage";
 import { AddRecordPage } from "@/pages/AddRecordPage";
 import { StaffPage } from "@/pages/StaffPage";
 import { LoginPage } from "@/pages/LoginPage";
 import SignupPage from "@/pages/SignupPage";
 import SettingsPage from "@/pages/SettingsPage";
+import { SupervisorActivitiesPage } from "@/pages/SupervisorActivitiesPage";
+import { MyStatsPage } from "@/pages/MyStatsPage";
+import { ReportsPage } from "@/pages/ReportsPage";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 
@@ -34,10 +37,16 @@ const App = () => (
               </ProtectedRoute>
             }>
               <Route index element={<DashboardPage />} />
-              <Route path="reports" element={<ReportsPage />} />
               <Route path="add-record" element={<AddRecordPage />} />
               <Route path="staff" element={<StaffPage />} />
-              <Route path="settings" element={<SettingsPage />} />
+              <Route path="settings" element={
+                <RoleProtectedRoute allowedRoles={['manager']}>
+                  <SettingsPage />
+                </RoleProtectedRoute>
+              } />
+              <Route path="supervisor-activities" element={<SupervisorActivitiesPage />} />
+              <Route path="my-stats" element={<MyStatsPage />} />
+              <Route path="reports" element={<ReportsPage />} />
             </Route>
             <Route path="/old" element={<Index />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

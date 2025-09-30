@@ -1,4 +1,4 @@
-import { Plus, BarChart3, FileText, Users, User, LogOut, Settings } from "lucide-react";
+import { Plus, BarChart3, FileText, Users, User, LogOut, Settings, PieChart } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import {
   Sidebar,
@@ -13,14 +13,24 @@ import {
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 
 const menuItems = [
   { title: "Dashboard", path: "/", icon: BarChart3 },
   { title: "Add Service", path: "/add-record", icon: FileText },
   { title: "Staff Commission", path: "/staff", icon: Users },
-  { title: "Reports", path: "/reports", icon: FileText },
+  { title: "Reports", path: "/reports", icon: PieChart },
+];
+
+const managerMenuItems = [
   { title: "Settings", path: "/settings", icon: Settings },
+  { title: "Supervisor Collections", path: "/supervisor-activities", icon: Users },
+];
+
+const supervisorMenuItems = [
+  { title: "My Daily Stats", path: "/my-stats", icon: BarChart3 },
 ];
 
 export function AppSidebar() {
@@ -80,6 +90,44 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+              
+              {/* Manager-specific menu items */}
+              {user?.role === 'manager' && managerMenuItems.map((item) => (
+                <SidebarMenuItem key={item.path}>
+                  <SidebarMenuButton
+                    asChild
+                    className={`w-full justify-start transition-all duration-200 ${
+                      isActive(item.path)
+                        ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                        : "hover:bg-muted"
+                    }`}
+                  >
+                    <Link to={item.path} onClick={handleMenuClick}> 
+                      <item.icon className="h-4 w-4" />
+                      {!isCollapsed && <span className="ml-3">{item.title}</span>}
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+              
+              {/* Supervisor-specific menu items */}
+              {user?.role === 'supervisor' && supervisorMenuItems.map((item) => (
+                <SidebarMenuItem key={item.path}>
+                  <SidebarMenuButton
+                    asChild
+                    className={`w-full justify-start transition-all duration-200 ${
+                      isActive(item.path)
+                        ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                        : "hover:bg-muted"
+                    }`}
+                  >
+                    <Link to={item.path} onClick={handleMenuClick}> 
+                      <item.icon className="h-4 w-4" />
+                      {!isCollapsed && <span className="ml-3">{item.title}</span>}
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -96,7 +144,30 @@ export function AppSidebar() {
                   <p className="text-sm font-semibold truncate text-foreground">
                     {user?.name || user?.email || 'User'}
                   </p>
-                  <p className="text-xs text-muted-foreground">Administrator</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Badge 
+                            variant={user?.role === 'manager' ? 'default' : 'secondary'}
+                            className="text-xs cursor-help"
+                          >
+                            {user?.role || 'User'}
+                          </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>
+                            {user?.role === 'manager' 
+                              ? 'Manager - Can delete transactions and manage all records'
+                              : user?.role === 'supervisor'
+                              ? 'Supervisor - Can view and add records, but cannot delete'
+                              : 'User - Basic access'
+                            }
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
                 </div>
               </div>
               <Button
@@ -127,6 +198,7 @@ export function AppSidebar() {
             </div>
           )}
         </div>
+
       </SidebarContent>
     </Sidebar>
   );
