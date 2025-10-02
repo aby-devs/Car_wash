@@ -299,6 +299,23 @@ class ApiService {
     });
   }
 
+  // Service management API
+  async addService(serviceName: string): Promise<ApiResponse<{ availableServices: string[] }>> {
+    return this.request('/services', {
+      method: 'POST',
+      body: JSON.stringify({ serviceName }),
+      baseURL: AUTH_BASE_URL,
+    });
+  }
+
+  async removeService(serviceName: string): Promise<ApiResponse<{ availableServices: string[] }>> {
+    return this.request('/services', {
+      method: 'DELETE',
+      body: JSON.stringify({ serviceName }),
+      baseURL: AUTH_BASE_URL,
+    });
+  }
+
   // Staff Commission API
   async getStaffCommission(date: string): Promise<ApiResponse<StaffCommissionData>> {
     const params = new URLSearchParams({ date });

@@ -41,7 +41,10 @@ import {
   CheckCircle,
   XCircle,
   Activity,
-  Clock
+  Clock,
+  Plus,
+  Car,
+  X
 } from 'lucide-react';
 import { apiService } from '@/services/api';
 import { useToast } from '@/hooks/use-toast';
@@ -49,6 +52,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 interface AppSettings {
   signupEnabled: boolean;
+  availableServices?: string[];
 }
 
 interface User {
@@ -63,20 +67,26 @@ interface User {
 
 const SettingsPage: React.FC = () => {
   const [settings, setSettings] = useState<AppSettings>({
-    signupEnabled: true
+    signupEnabled: true,
+    availableServices: []
   });
   
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [usersLoading, setUsersLoading] = useState(false);
   const [error, setError] = useState('');
+  const [newServiceName, setNewServiceName] = useState('');
+  const [addingService, setAddingService] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
 
   useEffect(() => {
     loadSettings();
-    loadUsers();
-  }, []);
+    // Only load users for managers
+    if (user?.role === 'manager') {
+      loadUsers();
+    }
+  }, [user?.role]);
 
 
   const loadSettings = async () => {
@@ -86,7 +96,9 @@ const SettingsPage: React.FC = () => {
       
       if (response.success && response.data) {
         setSettings({
-          signupEnabled: response.data.signupEnabled !== undefined ? response.data.signupEnabled : true
+          // Only load signup settings for managers
+          signupEnabled: user?.role === 'manager' ? (response.data.signupEnabled !== undefined ? response.data.signupEnabled : true) : true,
+          availableServices: response.data.availableServices || []
         });
       }
     } catch (err) {
@@ -120,6 +132,11 @@ const SettingsPage: React.FC = () => {
   };
 
   const handleSignupToggle = async (enabled: boolean) => {
+    // Only allow managers to toggle signup settings
+    if (user?.role !== 'manager') {
+      return;
+    }
+    
     try {
       setError('');
       
@@ -127,7 +144,7 @@ const SettingsPage: React.FC = () => {
       const response = await apiService.updateSettings(newSettings);
       
       if (response.success) {
-        setSettings(newSettings);
+        setSettings(prev => ({ ...prev, ...newSettings }));
         toast({
           title: "Settings Updated",
           description: `User registration has been ${enabled ? 'enabled' : 'disabled'}.`,
@@ -184,6 +201,71 @@ const SettingsPage: React.FC = () => {
       toast({
         title: "Error Deleting User",
         description: err instanceof Error ? err.message : 'Failed to delete user',
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleAddService = async () => {
+    if (!newServiceName.trim()) {
+      toast({
+        title: "Invalid Service Name",
+        description: "Please enter a service name.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      setAddingService(true);
+      const response = await apiService.addService(newServiceName.trim());
+      
+      if (response.success && response.data) {
+        setSettings(prev => ({
+          ...prev,
+          availableServices: response.data?.availableServices || []
+        }));
+        setNewServiceName('');
+        toast({
+          title: "Service Added",
+          description: `"${newServiceName.trim()}" has been added to available services.`,
+        });
+      } else {
+        throw new Error(response.message || 'Failed to add service');
+      }
+    } catch (err) {
+      console.error('Failed to add service:', err);
+      toast({
+        title: "Error Adding Service",
+        description: err instanceof Error ? err.message : 'Failed to add service',
+        variant: "destructive"
+      });
+    } finally {
+      setAddingService(false);
+    }
+  };
+
+  const handleRemoveService = async (serviceName: string) => {
+    try {
+      const response = await apiService.removeService(serviceName);
+      
+      if (response.success && response.data) {
+        setSettings(prev => ({
+          ...prev,
+          availableServices: response.data?.availableServices || []
+        }));
+        toast({
+          title: "Service Removed",
+          description: `"${serviceName}" has been removed from available services.`,
+        });
+      } else {
+        throw new Error(response.message || 'Failed to remove service');
+      }
+    } catch (err) {
+      console.error('Failed to remove service:', err);
+      toast({
+        title: "Error Removing Service",
+        description: err instanceof Error ? err.message : 'Failed to remove service',
         variant: "destructive"
       });
     }
@@ -246,9 +328,10 @@ const SettingsPage: React.FC = () => {
       )}
 
       {/* Settings Cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
-        {/* User Registration Settings */}
-        <Card className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-blue-500">
+      <div className={`grid grid-cols-1 gap-3 sm:gap-4 md:gap-6 ${user?.role === 'manager' ? 'lg:grid-cols-2' : 'lg:grid-cols-1 max-w-md'}`}>
+        {/* User Registration Settings - Only for Managers */}
+        {user?.role === 'manager' && (
+          <Card className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-blue-500">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-3 pt-3 md:px-6 md:pt-6">
             <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
               User Registration
@@ -286,6 +369,7 @@ const SettingsPage: React.FC = () => {
             )}
           </CardContent>
         </Card>
+        )}
 
         {/* Current User Info */}
         <Card className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-green-500">
@@ -316,8 +400,95 @@ const SettingsPage: React.FC = () => {
         </Card>
       </div>
 
-      {/* Users Management */}
-      <Card className="border-l-4 border-l-purple-500">
+      {/* Service Management */}
+      <Card className="border-l-4 border-l-orange-500">
+        <CardHeader className="px-3 pt-3 pb-2 md:px-6 md:pt-6 md:pb-4">
+          <CardTitle className="flex items-center text-sm sm:text-base">
+            <Car className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-orange-600" />
+            Service Management
+          </CardTitle>
+          <CardDescription className="text-xs sm:text-sm">Manage available car wash services</CardDescription>
+        </CardHeader>
+        <CardContent className="px-3 pb-3 md:px-6 md:pb-6">
+          {/* Add New Service */}
+          <div className="mb-6">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex-1">
+                <Label htmlFor="new-service" className="text-sm font-medium text-gray-700">
+                  Add New Service
+                </Label>
+                <Input
+                  id="new-service"
+                  placeholder="e.g., Bullet Washing, Body Washing"
+                  value={newServiceName}
+                  onChange={(e) => setNewServiceName(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleAddService()}
+                  className="mt-1"
+                />
+              </div>
+              <div className="flex-shrink-0 flex items-end">
+                <Button 
+                  onClick={handleAddService}
+                  disabled={addingService || !newServiceName.trim()}
+                  className="w-full sm:w-auto"
+                >
+                  {addingService ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Adding...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Service
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* Services List */}
+          <div>
+            <h3 className="text-sm font-medium text-gray-700 mb-3">
+              Available Services ({settings.availableServices?.length || 0})
+            </h3>
+            
+            {settings.availableServices && settings.availableServices.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {settings.availableServices.map((service, index) => (
+                  <div 
+                    key={index}
+                    className="flex items-center justify-between p-3 bg-orange-50 border border-orange-200 rounded-lg hover:bg-orange-100 transition-colors"
+                  >
+                    <span className="text-sm font-medium text-gray-700 flex-1 truncate">
+                      {service}
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleRemoveService(service)}
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50 p-1 h-8 w-8"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <Car className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground text-sm">No services available</p>
+                <p className="text-muted-foreground text-xs mt-1">Add your first service above</p>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Users Management - Only for Managers */}
+      {user?.role === 'manager' && (
+        <Card className="border-l-4 border-l-purple-500">
         <CardHeader className="px-3 pt-3 pb-2 md:px-6 md:pt-6 md:pb-4">
           <CardTitle className="flex items-center text-sm sm:text-base">
             <Users className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-purple-600" />
@@ -526,6 +697,7 @@ const SettingsPage: React.FC = () => {
           )}
         </CardContent>
       </Card>
+      )}
     </div>
   );
 };

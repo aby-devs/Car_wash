@@ -40,7 +40,7 @@ const App = () => (
               <Route path="add-record" element={<AddRecordPage />} />
               <Route path="staff" element={<StaffPage />} />
               <Route path="settings" element={
-                <RoleProtectedRoute allowedRoles={['manager']}>
+                <RoleProtectedRoute allowedRoles={['manager', 'supervisor']}>
                   <SettingsPage />
                 </RoleProtectedRoute>
               } />

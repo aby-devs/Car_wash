@@ -599,3 +599,4 @@ users/
    - Hides signup link when registration is disabled
 
 This system provides a clean, centralized way to control user registration while maintaining a good user experience with proper error handling and UI feedback.
+

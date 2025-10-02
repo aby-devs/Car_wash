@@ -31,6 +31,7 @@ const managerMenuItems = [
 
 const supervisorMenuItems = [
   { title: "My Daily Stats", path: "/my-stats", icon: BarChart3 },
+  { title: "Settings", path: "/settings", icon: Settings },
 ];
 
 export function AppSidebar() {

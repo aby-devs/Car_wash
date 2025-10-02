@@ -114,12 +114,68 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
   const [deletingRecordId, setDeletingRecordId] = useState<string | null>(null);
   const serviceDropdownRef = useRef<HTMLDivElement>(null);
   
+  // State for available services
+  const [availableServices, setAvailableServices] = useState<string[]>([]);
+  const [loadingServices, setLoadingServices] = useState(true);
+  
   // New state for active services and payment form
   const [activeServices, setActiveServices] = useState<ActiveService[]>([]);
   const [completedServices, setCompletedServices] = useState<CarWashRecord[]>([]);
   const [showPaymentForm, setShowPaymentForm] = useState(false);
   const [selectedActiveService, setSelectedActiveService] = useState<ActiveService | null>(null);
   const [isPaymentSubmitting, setIsPaymentSubmitting] = useState(false);
+
+  // Load available services from settings
+  useEffect(() => {
+    const loadAvailableServices = async () => {
+      try {
+        setLoadingServices(true);
+        const response = await apiService.getSettings();
+        if (response.success && response.data?.availableServices) {
+          setAvailableServices(response.data.availableServices);
+        } else {
+          // Fallback to default services if settings don't exist
+          setAvailableServices([
+            'Engine Steam Wash',
+            'Under Wash',
+            'Executive Wash',
+            'Vacuum',
+            'Vacuum and shampoo',
+            'Leather Care Cleaner',
+            'Dashboard Shine',
+            'Executive Machine Polish',
+            'Executive Buffing',
+            'Air-con Refill',
+            'Water Marks',
+            'Rim Restoration',
+            'Engine Wash'
+          ]);
+        }
+      } catch (error) {
+        console.error('Failed to load available services:', error);
+        // Fallback to default services
+        setAvailableServices([
+          'Engine Steam Wash',
+          'Under Wash',
+          'Executive Wash',
+          'Vacuum',
+          'Vacuum and shampoo',
+          'Leather Care Cleaner',
+          'Dashboard Shine',
+          'Executive Machine Polish',
+          'Executive Buffing',
+          'Air-con Refill',
+          'Water Marks',
+          'Rim Restoration',
+          'Engine Wash'
+        ]);
+      } finally {
+        setLoadingServices(false);
+      }
+    };
+
+    loadAvailableServices();
+  }, []);
   const [paymentFormData, setPaymentFormData] = useState<PaymentFormData>({
     amountPaid: '',
     paymentMethod: '',
@@ -1481,21 +1537,16 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
                       {isServiceDropdownOpen && (
                         <div className="absolute z-50 w-full mt-1 max-h-64 overflow-y-auto rounded-md border bg-popover text-popover-foreground shadow-md">
                           <div className="p-1">
-                            {[
-                              'Engine Steam Wash',
-                              'Under Wash',
-                              'Executive Wash',
-                              'Vacuum',
-                              'Vacuum and shampoo',
-                              'Leather Care Cleaner',
-                              'Dashboard Shine',
-                              'Executive Machine Polish',
-                              'Executive Buffing',
-                              'Air-con Refill',
-                              'Water Marks',
-                              'Rim Restoration',
-                              'Engine Wash'
-                            ].map((service) => (
+                            {loadingServices ? (
+                              <div className="p-2 text-center text-sm text-gray-500">
+                                Loading services...
+                              </div>
+                            ) : availableServices.length === 0 ? (
+                              <div className="p-2 text-center text-sm text-gray-500">
+                                No services available. Please add services in Settings.
+                              </div>
+                            ) : (
+                              availableServices.map((service) => (
                               <div 
                                 key={service} 
                                 className="flex items-center space-x-2 px-2 py-1.5 hover:bg-gray-100 cursor-pointer rounded-sm"
@@ -1510,7 +1561,8 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
                                 />
                                 <span className="text-sm text-gray-700">{service}</span>
                               </div>
-                            ))}
+                              ))
+                            )}
                             <div className="border-t pt-2 mt-2">
                               <button
                                 type="button"

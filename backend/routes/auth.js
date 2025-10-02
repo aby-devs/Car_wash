@@ -15,6 +15,10 @@ router.post('/create-user', AuthLogic.createUser); // For manual user creation
 router.get('/settings', AuthLogic.get_settings);
 router.put('/settings', AuthLogic.update_settings);
 
+// Service management routes
+router.post('/services', verifyToken, AuthLogic.add_service);
+router.delete('/services', verifyToken, AuthLogic.remove_service);
+
 // User management routes (manager only)
 router.get('/users', verifyToken, requireManager, AuthLogic.getUsers);
 router.put('/users/:userId/role', verifyToken, requireManager, AuthLogic.updateUserRole);

@@ -576,6 +576,21 @@ exports.get_settings = async (req, res) => {
         'Tire cleaning',
         'Engine bay cleaning'
       ],
+      availableServices: [
+        'Engine Steam Wash',
+        'Under Wash',
+        'Executive Wash',
+        'Vacuum',
+        'Vacuum and shampoo',
+        'Leather Care Cleaner',
+        'Dashboard Shine',
+        'Executive Machine Polish',
+        'Executive Buffing',
+        'Air-con Refill',
+        'Water Marks',
+        'Rim Restoration',
+        'Engine Wash'
+      ],
       workingHours: {
         open: '08:00',
         close: '18:00'
@@ -625,6 +640,131 @@ exports.update_settings = async (req, res) => {
 
   } catch (error) {
     console.error('Error updating settings:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
+// Add a new service to available services
+exports.add_service = async (req, res) => {
+  try {
+    const { serviceName } = req.body;
+
+    if (!serviceName || typeof serviceName !== 'string' || serviceName.trim() === '') {
+      return res.status(400).json({
+        success: false,
+        message: 'Service name is required and must be a non-empty string'
+      });
+    }
+
+    const settingsRef = service_db.collection('settings').doc('app');
+    const settingsDoc = await settingsRef.get();
+
+    let settings = {
+      availableServices: [
+        'Engine Steam Wash',
+        'Under Wash',
+        'Executive Wash',
+        'Vacuum',
+        'Vacuum and shampoo',
+        'Leather Care Cleaner',
+        'Dashboard Shine',
+        'Executive Machine Polish',
+        'Executive Buffing',
+        'Air-con Refill',
+        'Water Marks',
+        'Rim Restoration',
+        'Engine Wash'
+      ]
+    };
+
+    if (settingsDoc.exists) {
+      settings = { ...settings, ...settingsDoc.data() };
+    }
+
+    // Check if service already exists
+    if (settings.availableServices && settings.availableServices.includes(serviceName.trim())) {
+      return res.status(409).json({
+        success: false,
+        message: 'Service already exists'
+      });
+    }
+
+    // Add the new service
+    if (!settings.availableServices) {
+      settings.availableServices = [];
+    }
+    settings.availableServices.push(serviceName.trim());
+    settings.updatedAt = admin.firestore.FieldValue.serverTimestamp();
+
+    // Update settings
+    await settingsRef.set(settings, { merge: true });
+
+    res.status(200).json({
+      success: true,
+      message: 'Service added successfully',
+      data: { availableServices: settings.availableServices }
+    });
+
+  } catch (error) {
+    console.error('Error adding service:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
+// Remove a service from available services
+exports.remove_service = async (req, res) => {
+  try {
+    const { serviceName } = req.body;
+
+    if (!serviceName || typeof serviceName !== 'string' || serviceName.trim() === '') {
+      return res.status(400).json({
+        success: false,
+        message: 'Service name is required and must be a non-empty string'
+      });
+    }
+
+    const settingsRef = service_db.collection('settings').doc('app');
+    const settingsDoc = await settingsRef.get();
+
+    if (!settingsDoc.exists) {
+      return res.status(404).json({
+        success: false,
+        message: 'Settings not found'
+      });
+    }
+
+    const settings = settingsDoc.data();
+
+    if (!settings.availableServices || !settings.availableServices.includes(serviceName.trim())) {
+      return res.status(404).json({
+        success: false,
+        message: 'Service not found'
+      });
+    }
+
+    // Remove the service
+    settings.availableServices = settings.availableServices.filter(service => service !== serviceName.trim());
+    settings.updatedAt = admin.firestore.FieldValue.serverTimestamp();
+
+    // Update settings
+    await settingsRef.set(settings, { merge: true });
+
+    res.status(200).json({
+      success: true,
+      message: 'Service removed successfully',
+      data: { availableServices: settings.availableServices }
+    });
+
+  } catch (error) {
+    console.error('Error removing service:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error',
@@ -841,6 +981,8 @@ module.exports = {
   createUser: exports.createUser,
   get_settings: exports.get_settings,
   update_settings: exports.update_settings,
+  add_service: exports.add_service,
+  remove_service: exports.remove_service,
   getUsers: exports.getUsers,
   updateUserRole: exports.updateUserRole,
   deleteUser: exports.deleteUser,
