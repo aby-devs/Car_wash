@@ -30,7 +30,7 @@ export interface CarWashRecord {
   mpesaCode?: string;
   createdAt?: any;
   updatedAt?: any;
-  status: 'active' | 'completed';
+  status: 'pending' | 'active' | 'Pending' | 'In Progress' | 'completed' | 'Completed';
 }
 
 export interface ActiveService {
@@ -81,12 +81,12 @@ export interface DashboardStats {
 }
 
 interface CarWashRecordFormProps {
-  onAddRecord: (record: Omit<CarWashRecord, 'id' | 'date' | 'time' | 'status' | 'createdAt' | 'updatedAt'>) => void;
+  onAddRecord: (record: Partial<CarWashRecord>) => void;
 }
 
 interface ServiceManagementProps {
   records: CarWashRecord[];
-  onAddRecord: (record: Omit<CarWashRecord, 'id' | 'date' | 'time' | 'status' | 'createdAt' | 'updatedAt'>) => void;
+  onAddRecord: (record: Partial<CarWashRecord>) => void;
   onUpdateRecord?: (recordId: string, updatedRecord: Partial<CarWashRecord>) => void;
   onDeleteRecord?: (recordId: string) => void;
 }
@@ -511,7 +511,7 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
     setIsPaymentSubmitting(true);
     try {
       // Create completed record
-      const completedRecord: Omit<CarWashRecord, 'id' | 'time' | 'createdAt' | 'updatedAt'> = {
+      const completedRecord: Partial<CarWashRecord> = {
         registrationNumber: selectedActiveService.registrationNumber,
         carModel: selectedActiveService.carModel,
         services: `${selectedActiveService.vehicleType} - ${selectedActiveService.serviceOffered.join(', ')}`,

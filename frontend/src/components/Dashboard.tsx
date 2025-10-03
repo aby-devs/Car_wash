@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Car, DollarSign, Users, Calendar, TrendingUp } from "lucide-react";
+import { Car, DollarSign, Users, Calendar, TrendingUp, Clock } from "lucide-react";
 import { CarWashRecord, DashboardStats } from "./CarWashRecord";
 import heroImage from "@/assets/car-wash-hero.jpg";
 
@@ -18,6 +18,9 @@ export function Dashboard({ records, dashboardStats, todayStats, weekStats, mont
   const uniqueAttendants = dashboardStats?.uniqueAttendants ?? [...new Set(records.map(record => record.attendant))].length;
   const completedRecords = records.filter(r => r.status === 'completed');
   const averageService = dashboardStats?.averageService ?? (completedRecords.length > 0 ? totalRevenue / completedRecords.length : 0);
+  
+  // Calculate pending services count
+  const pendingServices = records.filter(r => r.status === 'pending' || r.status === 'Pending').length;
   
   // Use backend payment breakdown if available - only count completed payments (status: 'completed')
   const mpesaCount = dashboardStats?.paymentBreakdown?.mpesa?.count ?? records.filter(r => r.paymentMethod === 'Mpesa' && r.status === 'completed').length;
@@ -83,6 +86,14 @@ export function Dashboard({ records, dashboardStats, todayStats, weekStats, mont
 
   const stats = [
     {
+      title: "Pending Services",
+      value: pendingServices.toString(),
+      subtitle: "Awaiting completion",
+      icon: Clock,
+      color: "text-red-600",
+      bgColor: "bg-red-50"
+    },
+    {
       title: "Total Services",
       value: totalServices.toString(),
       subtitle: `This Month: ${monthStats?.totalServices ?? monthRecords.length}`,
@@ -121,7 +132,7 @@ export function Dashboard({ records, dashboardStats, todayStats, weekStats, mont
   return (
     <div className="space-y-6">
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-6">
         {stats.map((stat, index) => (
           <Card key={index} className="hover:shadow-lg transition-all duration-300">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-3 pt-3 md:px-6 md:pt-6">

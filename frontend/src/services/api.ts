@@ -21,7 +21,7 @@ export interface CarWashRecord {
   mpesaCode?: string;
   createdAt?: any;
   updatedAt?: any;
-  status: 'active' | 'completed';
+  status: 'pending' | 'active' | 'Pending' | 'In Progress' | 'completed' | 'Completed';
 }
 
 export interface ApiResponse<T> {
