@@ -343,7 +343,7 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
     try {
       if (!formData.registrationNumber || !formData.carModel || !formData.vehicleType || 
           !formData.serviceOffered || formData.serviceOffered.length === 0 || !formData.attendant || 
-          !formData.date) {
+          !formData.amountPaid || !formData.date) {
         toast({
           title: "Missing Information",
           description: "Please fill in all required fields.",
@@ -352,7 +352,7 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
         return;
       }
 
-      // Create active service record (no payment yet - always pending)
+      // Create active service record with agreed amount (pending payment)
       console.log('Creating record with date:', formData.date);
       console.log('Current system date:', new Date().toISOString().split('T')[0]);
       
@@ -362,7 +362,7 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
         services: `${formData.vehicleType} - ${formData.serviceOffered.join(', ')}`,
         vehicleType: formData.vehicleType,
         serviceOffered: formData.serviceOffered.join(', '),
-        amountPaid: 0, // Always 0 for pending services - payment will be added later
+        amountPaid: parseFloat(formData.amountPaid) || 0, // Record the agreed amount
         paymentMethod: 'Cash' as 'Cash' | 'Mpesa', // Default, will be updated during payment
         attendant: formData.attendant,
         supervisorAccount: user?.email || user?.name || 'unknown',
@@ -1166,8 +1166,8 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
                   <TableHead className="font-semibold py-4 px-4">Model</TableHead>
                   <TableHead className="font-semibold py-4 px-4">Vehicle Type</TableHead>
                   <TableHead className="font-semibold py-4 px-4">Services</TableHead>
+                  <TableHead className="font-semibold py-4 px-4">Amount</TableHead>
                   <TableHead className="font-semibold py-4 px-4">Attendant</TableHead>
-                  <TableHead className="font-semibold py-4 px-4 text-center">Payment</TableHead>
                   <TableHead className="font-semibold py-4 px-4 text-center">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -1193,8 +1193,9 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
                         </div>
                       </TableCell>
                       <TableCell className="py-4 px-4 text-right font-semibold text-green-600">
-                        KSh {service.amountPaid}
+                        KSh {service.amountPaid?.toLocaleString() || 0}
                       </TableCell>
+                      <TableCell className="py-4 px-4">{service.attendant}</TableCell>
                       <TableCell className="py-4 px-4 text-center">
                         <Button
                           onClick={() => handlePayClick(service)}
@@ -1649,7 +1650,7 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
 
                   <div className="space-y-2">
                     <Label htmlFor="amountPaid" className="text-sm font-medium text-gray-700">
-                      Expected Amount (KSh) <span className="text-gray-500 text-xs">(optional - for reference)</span>
+                      Amount (KSh) *
                     </Label>
                     <Input
                       id="amountPaid"
@@ -1871,7 +1872,7 @@ export function CarWashRecordForm({ onAddRecord }: CarWashRecordFormProps) {
     
     try {
       if (!formData.registrationNumber || !formData.carModel || !formData.services || 
-          !formData.paymentMethod || !formData.attendant) {
+          !formData.amountPaid || !formData.paymentMethod || !formData.attendant) {
         toast({
           title: "Missing Information",
           description: "Please fill in all required fields.",
@@ -1886,7 +1887,7 @@ export function CarWashRecordForm({ onAddRecord }: CarWashRecordFormProps) {
         services: formData.services,
         vehicleType: '', // Not used in this legacy form
         serviceOffered: '', // Not used in this legacy form
-        amountPaid: 0, // Always 0 for pending services - payment will be added later
+        amountPaid: parseFloat(formData.amountPaid) || 0, // Record the agreed amount
         paymentMethod: formData.paymentMethod as 'Cash' | 'Mpesa',
         date: now.toLocaleDateString(),
         status: 'active' as 'active' | 'completed'

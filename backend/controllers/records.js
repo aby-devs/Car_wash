@@ -117,7 +117,7 @@ exports.add_record = async (req, res) => {
       attendant: attendant.trim(),
       date: finalDate, // Use provided date or current date in YYYY-MM-DD format
       time: now.toLocaleTimeString(),
-      status: req.body.status || (amountPaid > 0 ? 'completed' : 'active'), // Set status based on payment
+      status: req.body.status || 'active', // Always create as active (pending) regardless of amount
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp()
     };
