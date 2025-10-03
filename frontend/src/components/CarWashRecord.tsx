@@ -44,6 +44,7 @@ export interface ActiveService {
   time: string;
   createdAt: any;
   status: 'active';
+  amountPaid: number;
 }
 
 export interface PaymentFormData {
@@ -205,6 +206,7 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
     vehicleType: '' as 'Saloon' | '4*4/SUV' | '',
     serviceOffered: [] as string[],
     attendant: '',
+    amountPaid: '',
     date: (() => {
       // Use East Africa Time (EAT, UTC+3)
       const today = new Date();
@@ -258,7 +260,8 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
           date: record.date,
           time: record.time,
           createdAt: record.createdAt,
-          status: 'active'
+          status: 'active',
+          amountPaid: record.amountPaid
         };
         active.push(activeService);
       } else {
@@ -339,7 +342,8 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
     
     try {
       if (!formData.registrationNumber || !formData.carModel || !formData.vehicleType || 
-          !formData.serviceOffered || formData.serviceOffered.length === 0 || !formData.attendant || !formData.date) {
+          !formData.serviceOffered || formData.serviceOffered.length === 0 || !formData.attendant || 
+          !formData.amountPaid || !formData.date) {
         toast({
           title: "Missing Information",
           description: "Please fill in all required fields.",
@@ -358,7 +362,7 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
         services: `${formData.vehicleType} - ${formData.serviceOffered.join(', ')}`,
         vehicleType: formData.vehicleType,
         serviceOffered: formData.serviceOffered.join(', '),
-        amountPaid: 0, // Will be set when payment is processed
+        amountPaid: parseFloat(formData.amountPaid), // Amount from form
         paymentMethod: 'Cash' as 'Cash' | 'Mpesa', // Default, will be updated during payment
         attendant: formData.attendant,
         supervisorAccount: user?.email || user?.name || 'unknown',
@@ -418,7 +422,7 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
     setSelectedActiveService(service);
     setShowPaymentForm(true);
     setPaymentFormData({
-      amountPaid: '',
+      amountPaid: service.amountPaid?.toString() || '',
       paymentMethod: '',
       mpesaCode: ''
     });
@@ -602,6 +606,7 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
       vehicleType: vehicleType as 'Saloon' | '4*4/SUV' | '',
       serviceOffered: servicesArray,
       attendant: record.attendant,
+      amountPaid: record.amountPaid.toString(),
       date: dateValue || new Date().toISOString().split('T')[0]
     });
     setShowForm(true);
@@ -658,6 +663,7 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
       vehicleType: '' as 'Saloon' | '4*4/SUV' | '',
       serviceOffered: [],
       attendant: '',
+      amountPaid: '',
       date: dateFilter || new Date().toISOString().split('T')[0] // Use selected date filter or today
     });
     setEditingRecord(null);
@@ -1091,7 +1097,10 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
                       <span className="font-medium text-gray-600">Services:</span> {service.serviceOffered.join(', ')}
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">👤 {service.attendant}</span>
+                      <div className="flex items-center gap-4">
+                        <span className="text-sm text-gray-600">👤 {service.attendant}</span>
+                        <span className="text-sm font-semibold text-green-600">KSh {service.amountPaid}</span>
+                      </div>
                       <div className="flex gap-2">
                         <Button
                           onClick={() => handlePayClick(service)}
@@ -1167,7 +1176,9 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
                           {service.serviceOffered.join(', ')}
                         </div>
                       </TableCell>
-                      <TableCell className="py-4 px-4">{service.attendant}</TableCell>
+                      <TableCell className="py-4 px-4 text-right font-semibold text-green-600">
+                        KSh {service.amountPaid}
+                      </TableCell>
                       <TableCell className="py-4 px-4 text-center">
                         <Button
                           onClick={() => handlePayClick(service)}
@@ -1177,6 +1188,13 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
                           <DollarSign className="mr-2 h-4 w-4" />
                           Pay
                         </Button>
+                      </TableCell>
+                      <TableCell className="py-4 px-4 text-center text-gray-400">
+                        -
+                      </TableCell>
+                      <TableCell className="py-4 px-4">{service.attendant}</TableCell>
+                      <TableCell className="py-4 px-4 text-sm text-gray-600">
+                        {user?.name || 'Unknown'}
                       </TableCell>
                       <TableCell className="py-4 px-4 text-center">
                         <div className="flex gap-2 justify-center">
@@ -1614,6 +1632,25 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
                   </div>
 
                   <div className="space-y-2">
+                    <Label htmlFor="amountPaid" className="text-sm font-medium text-gray-700">
+                      Amount (KSh) *
+                    </Label>
+                    <Input
+                      id="amountPaid"
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      placeholder="Enter amount"
+                      value={formData.amountPaid}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/[^0-9.]/g, '');
+                        handleInputChange('amountPaid', value);
+                      }}
+                      className="h-10 text-sm"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
                     <Label htmlFor="supervisor" className="text-sm font-medium text-gray-700">
                       Supervisor (Recorded By) *
                     </Label>
@@ -1719,22 +1756,18 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
 
               <form onSubmit={handlePaymentSubmit} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="amountPaid" className="text-sm font-medium text-gray-700">
-                    Amount Paid (KSh) *
+                  <Label className="text-sm font-medium text-gray-700">
+                    Amount to Pay (KSh)
                   </Label>
-                  <Input
-                    id="amountPaid"
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    placeholder="Enter amount"
-                    value={paymentFormData.amountPaid}
-                    onChange={(e) => {
-                      const value = e.target.value.replace(/[^0-9.]/g, '');
-                      setPaymentFormData(prev => ({ ...prev, amountPaid: value }));
-                    }}
-                    className="h-10 text-sm"
-                  />
+                  <div className="flex items-center gap-2 p-3 bg-green-50 rounded-md border border-green-200">
+                    <div className="w-8 h-8 bg-green-100 text-green-700 rounded-full flex items-center justify-center text-sm font-bold">
+                      KSh
+                    </div>
+                    <div>
+                      <p className="font-bold text-lg text-green-800">{paymentFormData.amountPaid}</p>
+                      <p className="text-xs text-green-600">Amount from service record</p>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="space-y-2">
