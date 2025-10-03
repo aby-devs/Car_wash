@@ -17,10 +17,11 @@ export function Dashboard({ records, dashboardStats, todayStats, weekStats, mont
   const totalServices = dashboardStats?.totalServices ?? records.filter(r => r.status === 'completed').length;
   const uniqueAttendants = dashboardStats?.uniqueAttendants ?? [...new Set(records.map(record => record.attendant))].length;
   const completedRecords = records.filter(r => r.status === 'completed');
+  const pendingRecords = records.filter(r => r.status === 'active' || !r.status);
   const averageService = dashboardStats?.averageService ?? (completedRecords.length > 0 ? totalRevenue / completedRecords.length : 0);
   
-  // Calculate pending services count
-  const pendingServices = records.filter(r => r.status === 'pending' || r.status === 'Pending').length;
+  // Calculate pending services count (services with status 'active' are pending, or no status means pending)
+  const pendingServices = dashboardStats?.pendingServices ?? records.filter(r => r.status === 'active' || !r.status).length;
   
   // Use backend payment breakdown if available - only count completed payments (status: 'completed')
   const mpesaCount = dashboardStats?.paymentBreakdown?.mpesa?.count ?? records.filter(r => r.paymentMethod === 'Mpesa' && r.status === 'completed').length;

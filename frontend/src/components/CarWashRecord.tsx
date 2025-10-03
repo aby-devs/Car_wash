@@ -58,6 +58,7 @@ export interface PaymentFormData {
 export interface DashboardStats {
   totalRevenue: number;
   totalServices: number;
+  pendingServices?: number;
   uniqueAttendants: number;
   averageService: number;
   paymentBreakdown: {

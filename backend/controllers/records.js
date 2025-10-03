@@ -692,6 +692,7 @@ exports.get_dashboard_stats = async (req, res) => {
     // Calculate statistics
     const totalRevenue = records.filter(r => r.status === 'completed').reduce((sum, record) => sum + record.amountPaid, 0);
     const totalServices = records.filter(r => r.status === 'completed').length;
+    const pendingServices = records.filter(r => r.status === 'active' || !r.status).length;
     const uniqueAttendants = [...new Set(records.map(record => record.attendant))];
     const averageService = totalServices > 0 ? totalRevenue / totalServices : 0;
 
@@ -731,6 +732,7 @@ exports.get_dashboard_stats = async (req, res) => {
       data: {
         totalRevenue,
         totalServices,
+        pendingServices,
         uniqueAttendants: uniqueAttendants.length,
         averageService,
         paymentBreakdown: {
