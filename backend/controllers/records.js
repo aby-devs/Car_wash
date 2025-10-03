@@ -46,7 +46,23 @@ const generateServiceOrderId = async () => {
     .get();
   
   const count = snapshot.size + 1;
-  return `SO-${currentYear}-${count.toString().padStart(3, '0')}`;
+  const baseId = `SO-${currentYear}-${count.toString().padStart(3, '0')}`;
+  
+  // Check if ID already exists and generate a unique one
+  let uniqueId = baseId;
+  let counter = 1;
+  
+  while (true) {
+    const existingDoc = await recordsRef.doc(uniqueId).get();
+    if (!existingDoc.exists) {
+      break; // ID is unique
+    }
+    // ID exists, try with a suffix
+    uniqueId = `${baseId}-${counter.toString().padStart(2, '0')}`;
+    counter++;
+  }
+  
+  return uniqueId;
 };
 
 // Add a new car wash record

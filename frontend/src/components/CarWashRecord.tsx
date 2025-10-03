@@ -1063,14 +1063,30 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
+          {/* Search and Filter Controls */}
           <div className="p-6 border-b bg-orange-50/50">
-            <Button
-              onClick={() => setShowForm(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4"
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Add New Service
-            </Button>
+            <div className="flex flex-col lg:flex-row gap-4">
+              <div className="flex-1">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                  <Input
+                    placeholder="Search by registration, model, or service..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 h-10 text-sm"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => setShowForm(true)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4"
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add New Service
+                </Button>
+              </div>
+            </div>
           </div>
 
           {/* Mobile Card View */}
