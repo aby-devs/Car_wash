@@ -350,7 +350,7 @@ export function ReportsPage() {
     const paymentMethodStats = Array.from(paymentMap.values()).sort((a, b) => b.count - a.count);
     const hourlyRevenue = Array.from(hourlyMap.values()).sort((a, b) => a.hour - b.hour);
 
-    const totalRevenue = filteredData.reduce((sum, record) => sum + record.amountPaid, 0);
+    const totalRevenue = filteredData.filter(r => r.amountPaid > 0).reduce((sum, record) => sum + record.amountPaid, 0);
     const totalCommissions = attendantStats.reduce((sum, attendant) => sum + attendant.commission, 0);
     const totalProfit = totalRevenue - totalCommissions;
     const profitMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;

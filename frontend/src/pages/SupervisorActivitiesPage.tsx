@@ -145,24 +145,24 @@ export function SupervisorActivitiesPage() {
       name: supervisorName,
       account: supervisorAccount,
       totalRecords: supervisorRecords.length,
-      totalRevenue: supervisorRecords.reduce((sum, r) => sum + r.amountPaid, 0),
+      totalRevenue: supervisorRecords.filter(r => r.amountPaid > 0).reduce((sum, r) => sum + r.amountPaid, 0),
       todayRecords: todayRecords.length,
-      todayRevenue: todayRecords.reduce((sum, r) => sum + r.amountPaid, 0),
-      cashCount: supervisorRecords.filter(r => r.paymentMethod === 'Cash').length,
-      mpesaCount: supervisorRecords.filter(r => r.paymentMethod === 'Mpesa').length
+      todayRevenue: todayRecords.filter(r => r.amountPaid > 0).reduce((sum, r) => sum + r.amountPaid, 0),
+      cashCount: supervisorRecords.filter(r => r.paymentMethod === 'Cash' && r.amountPaid > 0).length,
+      mpesaCount: supervisorRecords.filter(r => r.paymentMethod === 'Mpesa' && r.amountPaid > 0).length
     };
   }).sort((a, b) => b.todayRevenue - a.todayRevenue);
 
   // Calculate comprehensive analytics
   const calculateAnalytics = () => {
-    const totalRevenue = filteredRecords.reduce((sum, r) => sum + r.amountPaid, 0);
+    const totalRevenue = filteredRecords.filter(r => r.amountPaid > 0).reduce((sum, r) => sum + r.amountPaid, 0);
     const totalRecords = filteredRecords.length;
     const uniqueSupervisors = [...new Set(filteredRecords.map(r => r.supervisorAccount))].length;
     const averageTransaction = totalRecords > 0 ? totalRevenue / totalRecords : 0;
     
-    // Payment method breakdown
-    const cashRecords = filteredRecords.filter(r => r.paymentMethod === 'Cash');
-    const mpesaRecords = filteredRecords.filter(r => r.paymentMethod === 'Mpesa');
+    // Payment method breakdown - only count completed transactions (amountPaid > 0)
+    const cashRecords = filteredRecords.filter(r => r.paymentMethod === 'Cash' && r.amountPaid > 0);
+    const mpesaRecords = filteredRecords.filter(r => r.paymentMethod === 'Mpesa' && r.amountPaid > 0);
     const cashRevenue = cashRecords.reduce((sum, r) => sum + r.amountPaid, 0);
     const mpesaRevenue = mpesaRecords.reduce((sum, r) => sum + r.amountPaid, 0);
     
@@ -433,10 +433,10 @@ export function SupervisorActivitiesPage() {
               // Calculate actual cash and M-Pesa revenue from records
               const supervisorRecords = records.filter(r => r.supervisorAccount === supervisor.account);
               const cashRevenue = supervisorRecords
-                .filter(r => r.paymentMethod === 'Cash')
+                .filter(r => r.paymentMethod === 'Cash' && r.amountPaid > 0)
                 .reduce((sum, r) => sum + r.amountPaid, 0);
               const mpesaRevenue = supervisorRecords
-                .filter(r => r.paymentMethod === 'Mpesa')
+                .filter(r => r.paymentMethod === 'Mpesa' && r.amountPaid > 0)
                 .reduce((sum, r) => sum + r.amountPaid, 0);
               
               return (
@@ -587,7 +587,7 @@ export function SupervisorActivitiesPage() {
               </div>
               <div className="text-sm text-muted-foreground">
                 Total Revenue: <span className="font-semibold text-green-600">
-                  KSh {filteredRecords.reduce((sum, r) => sum + r.amountPaid, 0).toLocaleString()}
+                  KSh {filteredRecords.filter(r => r.amountPaid > 0).reduce((sum, r) => sum + r.amountPaid, 0).toLocaleString()}
                 </span>
               </div>
             </div>

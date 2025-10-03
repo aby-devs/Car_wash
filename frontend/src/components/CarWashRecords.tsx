@@ -39,7 +39,7 @@ export function CarWashRecords({ records, todayStats }: CarWashRecordsProps) {
   });
 
   // Enhanced analytics
-  const totalRevenue = records.reduce((sum, record) => sum + record.amountPaid, 0);
+  const totalRevenue = records.filter(r => r.amountPaid > 0).reduce((sum, record) => sum + record.amountPaid, 0);
   
   // Fix today's records calculation - handle different date formats
   const today = new Date();
@@ -72,14 +72,14 @@ export function CarWashRecords({ records, todayStats }: CarWashRecordsProps) {
     return false;
   });
   
-  const weeklyRevenue = filteredRecords.reduce((sum, record) => sum + record.amountPaid, 0);
+  const weeklyRevenue = filteredRecords.filter(r => r.amountPaid > 0).reduce((sum, record) => sum + record.amountPaid, 0);
   const averageTransaction = filteredRecords.length > 0 ? weeklyRevenue / filteredRecords.length : 0;
   
 
   
-  // Payment method breakdown
-  const mpesaCount = filteredRecords.filter(r => r.paymentMethod === 'Mpesa').length;
-  const cashCount = filteredRecords.filter(r => r.paymentMethod === 'Cash').length;
+  // Payment method breakdown - only count completed transactions (amountPaid > 0)
+  const mpesaCount = filteredRecords.filter(r => r.paymentMethod === 'Mpesa' && r.amountPaid > 0).length;
+  const cashCount = filteredRecords.filter(r => r.paymentMethod === 'Cash' && r.amountPaid > 0).length;
 
   return (
     <Card className="w-full">
@@ -212,19 +212,19 @@ export function CarWashRecords({ records, todayStats }: CarWashRecordsProps) {
                 </div>
                 <div className="text-center p-3 bg-white rounded-lg border">
                   <div className="text-2xl font-bold text-green-600">
-                    KSh {filteredRecords.reduce((sum, r) => sum + r.amountPaid, 0).toLocaleString()}
+                    KSh {filteredRecords.filter(r => r.amountPaid > 0).reduce((sum, r) => sum + r.amountPaid, 0).toLocaleString()}
                   </div>
                   <div className="text-sm text-muted-foreground">Total Revenue</div>
                 </div>
                 <div className="text-center p-3 bg-white rounded-lg border">
                   <div className="text-2xl font-bold text-blue-600">
-                    {filteredRecords.filter(r => r.paymentMethod === 'Cash').length}
+                    {filteredRecords.filter(r => r.paymentMethod === 'Cash' && r.amountPaid > 0).length}
                   </div>
                   <div className="text-sm text-muted-foreground">Cash Payments</div>
                 </div>
                 <div className="text-center p-3 bg-white rounded-lg border">
                   <div className="text-2xl font-bold text-green-600">
-                    {filteredRecords.filter(r => r.paymentMethod === 'Mpesa').length}
+                    {filteredRecords.filter(r => r.paymentMethod === 'Mpesa' && r.amountPaid > 0).length}
                   </div>
                   <div className="text-sm text-muted-foreground">M-Pesa Payments</div>
                 </div>
@@ -278,7 +278,7 @@ export function CarWashRecords({ records, todayStats }: CarWashRecordsProps) {
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Today's Revenue:</span>
                   <span className="font-bold">
-                    KSh {(todayStats?.totalRevenue ?? todayRecords.reduce((sum, r) => sum + r.amountPaid, 0)).toLocaleString()}
+                    KSh {(todayStats?.totalRevenue ?? todayRecords.filter(r => r.amountPaid > 0).reduce((sum, r) => sum + r.amountPaid, 0)).toLocaleString()}
                   </span>
                 </div>
               </div>

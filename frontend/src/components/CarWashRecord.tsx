@@ -343,7 +343,7 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
     try {
       if (!formData.registrationNumber || !formData.carModel || !formData.vehicleType || 
           !formData.serviceOffered || formData.serviceOffered.length === 0 || !formData.attendant || 
-          !formData.amountPaid || !formData.date) {
+          !formData.date) {
         toast({
           title: "Missing Information",
           description: "Please fill in all required fields.",
@@ -352,7 +352,7 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
         return;
       }
 
-      // Create active service record (no payment yet)
+      // Create active service record (no payment yet - always pending)
       console.log('Creating record with date:', formData.date);
       console.log('Current system date:', new Date().toISOString().split('T')[0]);
       
@@ -362,7 +362,7 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
         services: `${formData.vehicleType} - ${formData.serviceOffered.join(', ')}`,
         vehicleType: formData.vehicleType,
         serviceOffered: formData.serviceOffered.join(', '),
-        amountPaid: parseFloat(formData.amountPaid), // Amount from form
+        amountPaid: 0, // Always 0 for pending services - payment will be added later
         paymentMethod: 'Cash' as 'Cash' | 'Mpesa', // Default, will be updated during payment
         attendant: formData.attendant,
         supervisorAccount: user?.email || user?.name || 'unknown',
@@ -758,10 +758,10 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
   // Calculate summary statistics for filtered data
   const totalRevenue = filteredCompletedServices.reduce((sum, record) => sum + record.amountPaid, 0);
   const totalServices = filteredCompletedServices.length;
-  const mpesaCount = filteredCompletedServices.filter(r => r.paymentMethod === 'Mpesa').length;
-  const cashCount = filteredCompletedServices.filter(r => r.paymentMethod === 'Cash').length;
-  const mpesaRevenue = filteredCompletedServices.filter(r => r.paymentMethod === 'Mpesa').reduce((sum, record) => sum + record.amountPaid, 0);
-  const cashRevenue = filteredCompletedServices.filter(r => r.paymentMethod === 'Cash').reduce((sum, record) => sum + record.amountPaid, 0);
+  const mpesaCount = filteredCompletedServices.filter(r => r.paymentMethod === 'Mpesa' && r.amountPaid > 0).length;
+  const cashCount = filteredCompletedServices.filter(r => r.paymentMethod === 'Cash' && r.amountPaid > 0).length;
+  const mpesaRevenue = filteredCompletedServices.filter(r => r.paymentMethod === 'Mpesa' && r.amountPaid > 0).reduce((sum, record) => sum + record.amountPaid, 0);
+  const cashRevenue = filteredCompletedServices.filter(r => r.paymentMethod === 'Cash' && r.amountPaid > 0).reduce((sum, record) => sum + record.amountPaid, 0);
 
 
   const exportServicesToExcel = async () => {
@@ -1633,7 +1633,7 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
 
                   <div className="space-y-2">
                     <Label htmlFor="amountPaid" className="text-sm font-medium text-gray-700">
-                      Amount (KSh) *
+                      Expected Amount (KSh) <span className="text-gray-500 text-xs">(optional - for reference)</span>
                     </Label>
                     <Input
                       id="amountPaid"
@@ -1855,7 +1855,7 @@ export function CarWashRecordForm({ onAddRecord }: CarWashRecordFormProps) {
     
     try {
       if (!formData.registrationNumber || !formData.carModel || !formData.services || 
-          !formData.amountPaid || !formData.paymentMethod || !formData.attendant) {
+          !formData.paymentMethod || !formData.attendant) {
         toast({
           title: "Missing Information",
           description: "Please fill in all required fields.",
@@ -1870,10 +1870,10 @@ export function CarWashRecordForm({ onAddRecord }: CarWashRecordFormProps) {
         services: formData.services,
         vehicleType: '', // Not used in this legacy form
         serviceOffered: '', // Not used in this legacy form
-        amountPaid: parseFloat(formData.amountPaid),
+        amountPaid: 0, // Always 0 for pending services - payment will be added later
         paymentMethod: formData.paymentMethod as 'Cash' | 'Mpesa',
         date: now.toLocaleDateString(),
-        status: 'completed' as 'active' | 'completed'
+        status: 'active' as 'active' | 'completed'
       };
 
       await onAddRecord(record);

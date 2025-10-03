@@ -13,16 +13,16 @@ interface DashboardProps {
 
 export function Dashboard({ records, dashboardStats, todayStats, weekStats, monthStats }: DashboardProps) {
   // Use backend stats if available, otherwise calculate locally
-  const totalRevenue = dashboardStats?.totalRevenue ?? records.reduce((sum, record) => sum + record.amountPaid, 0);
+  const totalRevenue = dashboardStats?.totalRevenue ?? records.filter(r => r.amountPaid > 0).reduce((sum, record) => sum + record.amountPaid, 0);
   const totalServices = dashboardStats?.totalServices ?? records.length;
   const uniqueAttendants = dashboardStats?.uniqueAttendants ?? [...new Set(records.map(record => record.attendant))].length;
   const averageService = dashboardStats?.averageService ?? (records.length > 0 ? totalRevenue / records.length : 0);
   
   // Use backend payment breakdown if available
-  const mpesaCount = dashboardStats?.paymentBreakdown?.mpesa?.count ?? records.filter(r => r.paymentMethod === 'Mpesa').length;
-  const mpesaRevenue = dashboardStats?.paymentBreakdown?.mpesa?.revenue ?? records.filter(r => r.paymentMethod === 'Mpesa').reduce((sum, record) => sum + record.amountPaid, 0);
-  const cashCount = dashboardStats?.paymentBreakdown?.cash?.count ?? records.filter(r => r.paymentMethod === 'Cash').length;
-  const cashRevenue = dashboardStats?.paymentBreakdown?.cash?.revenue ?? records.filter(r => r.paymentMethod === 'Cash').reduce((sum, record) => sum + record.amountPaid, 0);
+  const mpesaCount = dashboardStats?.paymentBreakdown?.mpesa?.count ?? records.filter(r => r.paymentMethod === 'Mpesa' && r.amountPaid > 0).length;
+  const mpesaRevenue = dashboardStats?.paymentBreakdown?.mpesa?.revenue ?? records.filter(r => r.paymentMethod === 'Mpesa' && r.amountPaid > 0).reduce((sum, record) => sum + record.amountPaid, 0);
+  const cashCount = dashboardStats?.paymentBreakdown?.cash?.count ?? records.filter(r => r.paymentMethod === 'Cash' && r.amountPaid > 0).length;
+  const cashRevenue = dashboardStats?.paymentBreakdown?.cash?.revenue ?? records.filter(r => r.paymentMethod === 'Cash' && r.amountPaid > 0).reduce((sum, record) => sum + record.amountPaid, 0);
   
   // For today's records, we still need to calculate locally since backend doesn't provide this breakdown
   const today = new Date();
@@ -83,7 +83,7 @@ export function Dashboard({ records, dashboardStats, todayStats, weekStats, mont
     {
       title: "Total Revenue",
       value: `KSh ${totalRevenue.toLocaleString()}`,
-      subtitle: `This Month: KSh ${(monthStats?.totalRevenue ?? monthRecords.reduce((sum, r) => sum + r.amountPaid, 0)).toLocaleString()}`,
+      subtitle: `This Month: KSh ${(monthStats?.totalRevenue ?? monthRecords.filter(r => r.amountPaid > 0).reduce((sum, r) => sum + r.amountPaid, 0)).toLocaleString()}`,
       icon: DollarSign,
       color: "text-green-600",
       bgColor: "bg-green-50"
@@ -106,7 +106,7 @@ export function Dashboard({ records, dashboardStats, todayStats, weekStats, mont
     }
   ];
 
-  const recentRecords = records.slice(-3).reverse();
+  const recentRecords = records.slice(0, 3); // Get first 3 (newest) records
 
   return (
     <div className="space-y-6">
@@ -245,7 +245,7 @@ export function Dashboard({ records, dashboardStats, todayStats, weekStats, mont
               <h4 className="font-semibold mb-1 md:mb-2 text-blue-800 text-sm md:text-base">Today</h4>
               <div className="space-y-1 text-xs md:text-sm">
                 <p className="font-bold text-blue-900">{todayStats?.totalServices ?? todayRecords.length} services</p>
-                <p className="text-blue-600">KSh {(todayStats?.totalRevenue ?? todayRecords.reduce((sum, r) => sum + r.amountPaid, 0)).toLocaleString()}</p>
+                <p className="text-blue-600">KSh {(todayStats?.totalRevenue ?? todayRecords.filter(r => r.amountPaid > 0).reduce((sum, r) => sum + r.amountPaid, 0)).toLocaleString()}</p>
               </div>
             </div>
             
@@ -253,7 +253,7 @@ export function Dashboard({ records, dashboardStats, todayStats, weekStats, mont
               <h4 className="font-semibold mb-1 md:mb-2 text-purple-800 text-sm md:text-base">This Week</h4>
               <div className="space-y-1 text-xs md:text-sm">
                 <p className="font-bold text-purple-900">{weekStats?.totalServices ?? weekRecords.length} services</p>
-                <p className="text-purple-600">KSh {(weekStats?.totalRevenue ?? weekRecords.reduce((sum, r) => sum + r.amountPaid, 0)).toLocaleString()}</p>
+                <p className="text-purple-600">KSh {(weekStats?.totalRevenue ?? weekRecords.filter(r => r.amountPaid > 0).reduce((sum, r) => sum + r.amountPaid, 0)).toLocaleString()}</p>
               </div>
             </div>
             
@@ -261,7 +261,7 @@ export function Dashboard({ records, dashboardStats, todayStats, weekStats, mont
               <h4 className="font-semibold mb-1 md:mb-2 text-green-800 text-sm md:text-base">This Month</h4>
               <div className="space-y-1 text-xs md:text-sm">
                 <p className="font-bold text-green-900">{monthStats?.totalServices ?? monthRecords.length} services</p>
-                <p className="text-green-600">KSh {(monthStats?.totalRevenue ?? monthRecords.reduce((sum, r) => sum + r.amountPaid, 0)).toLocaleString()}</p>
+                <p className="text-green-600">KSh {(monthStats?.totalRevenue ?? monthRecords.filter(r => r.amountPaid > 0).reduce((sum, r) => sum + r.amountPaid, 0)).toLocaleString()}</p>
               </div>
             </div>
             

@@ -125,12 +125,12 @@ export function MyStatsPage() {
 
   const stats = {
     totalRecords: myRecords.length,
-    totalRevenue: myRecords.reduce((sum, r) => sum + r.amountPaid, 0),
+    totalRevenue: myRecords.filter(r => r.amountPaid > 0).reduce((sum, r) => sum + r.amountPaid, 0),
     todayRecords: todayRecords.length,
-    todayRevenue: todayRecords.reduce((sum, r) => sum + r.amountPaid, 0),
-    cashCount: myRecords.filter(r => r.paymentMethod === 'Cash').length,
-    mpesaCount: myRecords.filter(r => r.paymentMethod === 'Mpesa').length,
-    averageTransaction: myRecords.length > 0 ? myRecords.reduce((sum, r) => sum + r.amountPaid, 0) / myRecords.length : 0
+    todayRevenue: todayRecords.filter(r => r.amountPaid > 0).reduce((sum, r) => sum + r.amountPaid, 0),
+    cashCount: myRecords.filter(r => r.paymentMethod === 'Cash' && r.amountPaid > 0).length,
+    mpesaCount: myRecords.filter(r => r.paymentMethod === 'Mpesa' && r.amountPaid > 0).length,
+    averageTransaction: myRecords.length > 0 ? myRecords.filter(r => r.amountPaid > 0).reduce((sum, r) => sum + r.amountPaid, 0) / myRecords.filter(r => r.amountPaid > 0).length : 0
   };
 
   const exportToExcel = () => {

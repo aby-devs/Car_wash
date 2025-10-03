@@ -28,7 +28,7 @@ exports.get_staff_commission = async (req, res) => {
 
     // Calculate commission data
     const totalServices = records.length;
-    const totalRevenue = records.reduce((sum, record) => sum + record.amountPaid, 0);
+    const totalRevenue = records.filter(r => r.amountPaid > 0).reduce((sum, record) => sum + record.amountPaid, 0);
 
     // Get unique staff members
     const uniqueStaff = [...new Set(records.map(record => record.attendant))];
@@ -37,7 +37,7 @@ exports.get_staff_commission = async (req, res) => {
     // Calculate individual staff commission breakdown with dynamic commission rates
     const staffBreakdown = uniqueStaff.map(attendant => {
       const attendantRecords = records.filter(r => r.attendant === attendant);
-      const attendantRevenue = attendantRecords.reduce((sum, r) => sum + r.amountPaid, 0);
+      const attendantRevenue = attendantRecords.filter(r => r.amountPaid > 0).reduce((sum, r) => sum + r.amountPaid, 0);
       
       // Commission calculation: 20% if < 5000, 30% if >= 5000
       const commissionRate = attendantRevenue < 5000 ? 0.20 : 0.30;
@@ -133,13 +133,13 @@ exports.get_staff_summary = async (req, res) => {
 
     // Calculate summary statistics
     const totalServices = filteredRecords.length;
-    const totalRevenue = filteredRecords.reduce((sum, record) => sum + record.amountPaid, 0);
+    const totalRevenue = filteredRecords.filter(r => r.amountPaid > 0).reduce((sum, record) => sum + record.amountPaid, 0);
     const uniqueStaff = [...new Set(filteredRecords.map(record => record.attendant))];
 
     // Top performing staff with dynamic commission rates
     const staffPerformance = uniqueStaff.map(attendant => {
       const attendantRecords = filteredRecords.filter(r => r.attendant === attendant);
-      const attendantRevenue = attendantRecords.reduce((sum, r) => sum + r.amountPaid, 0);
+      const attendantRevenue = attendantRecords.filter(r => r.amountPaid > 0).reduce((sum, r) => sum + r.amountPaid, 0);
       
       // Commission calculation: 20% if < 5000, 30% if >= 5000
       const commissionRate = attendantRevenue < 5000 ? 0.20 : 0.30;

@@ -162,8 +162,8 @@ exports.get_records = async (req, res) => {
       query = query.where('date', '<=', endDate);
     }
 
-    // Order by date (newest first) and limit
-    query = query.orderBy('date', 'desc').limit(parseInt(limit));
+    // Order by createdAt timestamp (newest first) and limit
+    query = query.orderBy('createdAt', 'desc').limit(parseInt(limit));
 
     const snapshot = await query.get();
     let records = [];
@@ -670,21 +670,21 @@ exports.get_dashboard_stats = async (req, res) => {
     const records = filteredRecords;
 
     // Calculate statistics
-    const totalRevenue = records.reduce((sum, record) => sum + record.amountPaid, 0);
+    const totalRevenue = records.filter(r => r.amountPaid > 0).reduce((sum, record) => sum + record.amountPaid, 0);
     const totalServices = records.length;
     const uniqueAttendants = [...new Set(records.map(record => record.attendant))];
     const averageService = totalServices > 0 ? totalRevenue / totalServices : 0;
 
     // Payment method breakdown
-    const mpesaRecords = records.filter(r => r.paymentMethod === 'Mpesa');
-    const cashRecords = records.filter(r => r.paymentMethod === 'Cash');
+    const mpesaRecords = records.filter(r => r.paymentMethod === 'Mpesa' && r.amountPaid > 0);
+    const cashRecords = records.filter(r => r.paymentMethod === 'Cash' && r.amountPaid > 0);
     const mpesaRevenue = mpesaRecords.reduce((sum, record) => sum + record.amountPaid, 0);
     const cashRevenue = cashRecords.reduce((sum, record) => sum + record.amountPaid, 0);
 
     // Staff performance
     const staffPerformance = uniqueAttendants.map(attendant => {
       const attendantRecords = records.filter(r => r.attendant === attendant);
-      const attendantRevenue = attendantRecords.reduce((sum, r) => sum + r.amountPaid, 0);
+      const attendantRevenue = attendantRecords.filter(r => r.amountPaid > 0).reduce((sum, r) => sum + r.amountPaid, 0);
       return {
         attendant,
         services: attendantRecords.length,
