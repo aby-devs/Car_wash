@@ -248,8 +248,8 @@ export function ReportsPage() {
   };
 
   const calculateAnalytics = (data: CarWashRecord[]) => {
-    // Use all data as it's already filtered by date range from API
-    const filteredData = data;
+    // Filter for only completed records (status: 'completed') - exclude pending payments
+    const filteredData = data.filter(record => record.status === 'completed');
 
     // Calculate attendant statistics
     const attendantMap = new Map();
@@ -350,7 +350,7 @@ export function ReportsPage() {
     const paymentMethodStats = Array.from(paymentMap.values()).sort((a, b) => b.count - a.count);
     const hourlyRevenue = Array.from(hourlyMap.values()).sort((a, b) => a.hour - b.hour);
 
-    const totalRevenue = filteredData.filter(r => r.amountPaid > 0).reduce((sum, record) => sum + record.amountPaid, 0);
+    const totalRevenue = filteredData.reduce((sum, record) => sum + record.amountPaid, 0);
     const totalCommissions = attendantStats.reduce((sum, attendant) => sum + attendant.commission, 0);
     const totalProfit = totalRevenue - totalCommissions;
     const profitMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;

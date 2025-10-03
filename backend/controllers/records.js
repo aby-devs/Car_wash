@@ -77,7 +77,9 @@ exports.add_record = async (req, res) => {
       paymentMethod,
       attendant,
       mpesaCode,
-      date
+      date,
+      supervisorAccount,
+      supervisorName
     } = req.body;
 
 
@@ -118,6 +120,8 @@ exports.add_record = async (req, res) => {
       date: finalDate, // Use provided date or current date in YYYY-MM-DD format
       time: now.toLocaleTimeString(),
       status: req.body.status || 'active', // Always create as active (pending) regardless of amount
+      supervisorAccount: supervisorAccount || 'unknown',
+      supervisorName: supervisorName || 'unknown',
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp()
     };
@@ -212,7 +216,7 @@ exports.get_records = async (req, res) => {
 
   } catch (error) {
     console.error('Error getting records:', error);
-    console.error('Query parameters:', { status, paymentMethod, attendant, startDate, endDate, limit });
+    console.error('Query parameters:', { paymentMethod, attendant, startDate, endDate, limit });
     res.status(500).json({
       success: false,
       message: 'Internal server error',
@@ -686,28 +690,35 @@ exports.get_dashboard_stats = async (req, res) => {
     const records = filteredRecords;
 
     // Calculate statistics
-    const totalRevenue = records.filter(r => r.amountPaid > 0).reduce((sum, record) => sum + record.amountPaid, 0);
-    const totalServices = records.length;
+    const totalRevenue = records.filter(r => r.status === 'completed').reduce((sum, record) => sum + record.amountPaid, 0);
+    const totalServices = records.filter(r => r.status === 'completed').length;
     const uniqueAttendants = [...new Set(records.map(record => record.attendant))];
     const averageService = totalServices > 0 ? totalRevenue / totalServices : 0;
 
-    // Payment method breakdown
-    const mpesaRecords = records.filter(r => r.paymentMethod === 'Mpesa' && r.amountPaid > 0);
-    const cashRecords = records.filter(r => r.paymentMethod === 'Cash' && r.amountPaid > 0);
+    // Payment method breakdown - only count completed payments
+    const mpesaRecords = records.filter(r => r.paymentMethod === 'Mpesa' && r.status === 'completed');
+    const cashRecords = records.filter(r => r.paymentMethod === 'Cash' && r.status === 'completed');
     const mpesaRevenue = mpesaRecords.reduce((sum, record) => sum + record.amountPaid, 0);
     const cashRevenue = cashRecords.reduce((sum, record) => sum + record.amountPaid, 0);
 
     // Staff performance
     const staffPerformance = uniqueAttendants.map(attendant => {
       const attendantRecords = records.filter(r => r.attendant === attendant);
-      const attendantRevenue = attendantRecords.filter(r => r.amountPaid > 0).reduce((sum, r) => sum + r.amountPaid, 0);
+      const completedRecords = attendantRecords.filter(r => r.status === 'completed');
+      const attendantRevenue = completedRecords.reduce((sum, r) => sum + r.amountPaid, 0);
+      
+      // Calculate commission (20% if < 5000, 30% if >= 5000)
+      const commissionRate = attendantRevenue < 5000 ? 0.20 : 0.30;
+      const commission = attendantRevenue * commissionRate;
+      
       return {
         attendant,
-        services: attendantRecords.length,
+        services: completedRecords.length, // Only count completed services
         revenue: attendantRevenue,
-        averageService: attendantRecords.length > 0 ? attendantRevenue / attendantRecords.length : 0
+        commission: commission,
+        averageService: completedRecords.length > 0 ? attendantRevenue / completedRecords.length : 0
       };
-    }).sort((a, b) => b.revenue - a.revenue);
+    }).sort((a, b) => b.commission - a.commission);
 
     // Recent records (last 5)
     const recentRecords = records

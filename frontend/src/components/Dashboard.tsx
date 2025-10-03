@@ -13,22 +13,26 @@ interface DashboardProps {
 
 export function Dashboard({ records, dashboardStats, todayStats, weekStats, monthStats }: DashboardProps) {
   // Use backend stats if available, otherwise calculate locally
-  const totalRevenue = dashboardStats?.totalRevenue ?? records.filter(r => r.amountPaid > 0).reduce((sum, record) => sum + record.amountPaid, 0);
-  const totalServices = dashboardStats?.totalServices ?? records.length;
+  const totalRevenue = dashboardStats?.totalRevenue ?? records.filter(r => r.status === 'completed').reduce((sum, record) => sum + record.amountPaid, 0);
+  const totalServices = dashboardStats?.totalServices ?? records.filter(r => r.status === 'completed').length;
   const uniqueAttendants = dashboardStats?.uniqueAttendants ?? [...new Set(records.map(record => record.attendant))].length;
-  const averageService = dashboardStats?.averageService ?? (records.length > 0 ? totalRevenue / records.length : 0);
+  const completedRecords = records.filter(r => r.status === 'completed');
+  const averageService = dashboardStats?.averageService ?? (completedRecords.length > 0 ? totalRevenue / completedRecords.length : 0);
   
-  // Use backend payment breakdown if available
-  const mpesaCount = dashboardStats?.paymentBreakdown?.mpesa?.count ?? records.filter(r => r.paymentMethod === 'Mpesa' && r.amountPaid > 0).length;
-  const mpesaRevenue = dashboardStats?.paymentBreakdown?.mpesa?.revenue ?? records.filter(r => r.paymentMethod === 'Mpesa' && r.amountPaid > 0).reduce((sum, record) => sum + record.amountPaid, 0);
-  const cashCount = dashboardStats?.paymentBreakdown?.cash?.count ?? records.filter(r => r.paymentMethod === 'Cash' && r.amountPaid > 0).length;
-  const cashRevenue = dashboardStats?.paymentBreakdown?.cash?.revenue ?? records.filter(r => r.paymentMethod === 'Cash' && r.amountPaid > 0).reduce((sum, record) => sum + record.amountPaid, 0);
+  // Use backend payment breakdown if available - only count completed payments (status: 'completed')
+  const mpesaCount = dashboardStats?.paymentBreakdown?.mpesa?.count ?? records.filter(r => r.paymentMethod === 'Mpesa' && r.status === 'completed').length;
+  const mpesaRevenue = dashboardStats?.paymentBreakdown?.mpesa?.revenue ?? records.filter(r => r.paymentMethod === 'Mpesa' && r.status === 'completed').reduce((sum, record) => sum + record.amountPaid, 0);
+  const cashCount = dashboardStats?.paymentBreakdown?.cash?.count ?? records.filter(r => r.paymentMethod === 'Cash' && r.status === 'completed').length;
+  const cashRevenue = dashboardStats?.paymentBreakdown?.cash?.revenue ?? records.filter(r => r.paymentMethod === 'Cash' && r.status === 'completed').reduce((sum, record) => sum + record.amountPaid, 0);
   
   // For today's records, we still need to calculate locally since backend doesn't provide this breakdown
   const today = new Date();
   const todayString = today.toLocaleDateString();
   
   const todayRecords = records.filter(record => {
+    // Only include completed records
+    if (record.status !== 'completed') return false;
+    
     // Handle both string dates and timestamp dates
     if (record.createdAt && record.createdAt.toDate) {
       // Firestore timestamp
@@ -59,6 +63,9 @@ export function Dashboard({ records, dashboardStats, todayStats, weekStats, mont
   const currentWeek = new Date();
   const startOfWeek = new Date(currentWeek.setDate(currentWeek.getDate() - currentWeek.getDay()));
   const weekRecords = records.filter(record => {
+    // Only include completed records
+    if (record.status !== 'completed') return false;
+    
     const recordDate = new Date(record.date);
     return recordDate >= startOfWeek;
   });
@@ -67,6 +74,9 @@ export function Dashboard({ records, dashboardStats, todayStats, weekStats, mont
   const currentMonth = new Date().getMonth();
   const currentYear = new Date().getFullYear();
   const monthRecords = records.filter(record => {
+    // Only include completed records
+    if (record.status !== 'completed') return false;
+    
     const recordDate = new Date(record.date);
     return recordDate.getMonth() === currentMonth && recordDate.getFullYear() === currentYear;
   });
@@ -106,7 +116,7 @@ export function Dashboard({ records, dashboardStats, todayStats, weekStats, mont
     }
   ];
 
-  const recentRecords = records.slice(0, 3); // Get first 3 (newest) records
+  const recentRecords = records.filter(r => r.status === 'completed').slice(0, 3); // Get first 3 (newest) completed records
 
   return (
     <div className="space-y-6">
@@ -219,9 +229,9 @@ export function Dashboard({ records, dashboardStats, todayStats, weekStats, mont
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="font-semibold">KSh {staff.revenue.toLocaleString()}</p>
+                      <p className="font-semibold text-green-600">KSh {staff.commission?.toLocaleString() || 0}</p>
                       <p className="text-xs text-muted-foreground">
-                        Avg: KSh {staff.averageService.toFixed(0)}
+                        Commission
                       </p>
                     </div>
                   </div>
@@ -245,7 +255,7 @@ export function Dashboard({ records, dashboardStats, todayStats, weekStats, mont
               <h4 className="font-semibold mb-1 md:mb-2 text-blue-800 text-sm md:text-base">Today</h4>
               <div className="space-y-1 text-xs md:text-sm">
                 <p className="font-bold text-blue-900">{todayStats?.totalServices ?? todayRecords.length} services</p>
-                <p className="text-blue-600">KSh {(todayStats?.totalRevenue ?? todayRecords.filter(r => r.amountPaid > 0).reduce((sum, r) => sum + r.amountPaid, 0)).toLocaleString()}</p>
+                <p className="text-blue-600">KSh {(todayStats?.totalRevenue ?? todayRecords.reduce((sum, r) => sum + r.amountPaid, 0)).toLocaleString()}</p>
               </div>
             </div>
             
@@ -253,7 +263,7 @@ export function Dashboard({ records, dashboardStats, todayStats, weekStats, mont
               <h4 className="font-semibold mb-1 md:mb-2 text-purple-800 text-sm md:text-base">This Week</h4>
               <div className="space-y-1 text-xs md:text-sm">
                 <p className="font-bold text-purple-900">{weekStats?.totalServices ?? weekRecords.length} services</p>
-                <p className="text-purple-600">KSh {(weekStats?.totalRevenue ?? weekRecords.filter(r => r.amountPaid > 0).reduce((sum, r) => sum + r.amountPaid, 0)).toLocaleString()}</p>
+                <p className="text-purple-600">KSh {(weekStats?.totalRevenue ?? weekRecords.reduce((sum, r) => sum + r.amountPaid, 0)).toLocaleString()}</p>
               </div>
             </div>
             
@@ -261,7 +271,7 @@ export function Dashboard({ records, dashboardStats, todayStats, weekStats, mont
               <h4 className="font-semibold mb-1 md:mb-2 text-green-800 text-sm md:text-base">This Month</h4>
               <div className="space-y-1 text-xs md:text-sm">
                 <p className="font-bold text-green-900">{monthStats?.totalServices ?? monthRecords.length} services</p>
-                <p className="text-green-600">KSh {(monthStats?.totalRevenue ?? monthRecords.filter(r => r.amountPaid > 0).reduce((sum, r) => sum + r.amountPaid, 0)).toLocaleString()}</p>
+                <p className="text-green-600">KSh {(monthStats?.totalRevenue ?? monthRecords.reduce((sum, r) => sum + r.amountPaid, 0)).toLocaleString()}</p>
               </div>
             </div>
             

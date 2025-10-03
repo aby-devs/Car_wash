@@ -27,7 +27,7 @@ exports.get_staff_commission = async (req, res) => {
     });
 
     // Calculate commission data
-    const totalServices = records.length;
+    const totalServices = records.filter(r => r.status === 'completed').length;
     const totalRevenue = records.filter(r => r.amountPaid > 0).reduce((sum, record) => sum + record.amountPaid, 0);
 
     // Get unique staff members
@@ -132,7 +132,7 @@ exports.get_staff_summary = async (req, res) => {
     }
 
     // Calculate summary statistics
-    const totalServices = filteredRecords.length;
+    const totalServices = filteredRecords.filter(r => r.status === 'completed').length;
     const totalRevenue = filteredRecords.filter(r => r.amountPaid > 0).reduce((sum, record) => sum + record.amountPaid, 0);
     const uniqueStaff = [...new Set(filteredRecords.map(record => record.attendant))];
 

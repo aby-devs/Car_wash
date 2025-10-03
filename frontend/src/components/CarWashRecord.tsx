@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Car, CreditCard, User, Search, Filter, Edit, Trash2, X, DollarSign, Download, Loader2, Calendar } from "lucide-react";
+import { Plus, Car, CreditCard, User, Search, Filter, Edit, Trash2, X, DollarSign, Download, Loader2, Calendar, ArrowUp } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiService } from "@/services/api";
 import { useAuth } from "@/contexts/AuthContext";
@@ -45,6 +45,8 @@ export interface ActiveService {
   createdAt: any;
   status: 'active';
   amountPaid: number;
+  supervisorAccount?: string;
+  supervisorName?: string;
 }
 
 export interface PaymentFormData {
@@ -72,6 +74,7 @@ export interface DashboardStats {
     attendant: string;
     services: number;
     revenue: number;
+    commission: number;
     averageService: number;
   }>;
   recentRecords: CarWashRecord[];
@@ -261,7 +264,9 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
           time: record.time,
           createdAt: record.createdAt,
           status: 'active',
-          amountPaid: record.amountPaid
+          amountPaid: record.amountPaid,
+          supervisorAccount: record.supervisorAccount,
+          supervisorName: record.supervisorName
         };
         active.push(activeService);
       } else {
@@ -485,7 +490,7 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
     
     if (isPaymentSubmitting) return; // Prevent double submission
     
-    if (!selectedActiveService || !paymentFormData.amountPaid || !paymentFormData.paymentMethod) {
+    if (!selectedActiveService || !paymentFormData.paymentMethod) {
       toast({
         title: "Missing Payment Information",
         description: "Please fill in all required payment fields.",
@@ -512,7 +517,7 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
         services: `${selectedActiveService.vehicleType} - ${selectedActiveService.serviceOffered.join(', ')}`,
         vehicleType: selectedActiveService.vehicleType,
         serviceOffered: selectedActiveService.serviceOffered.join(', '),
-        amountPaid: parseFloat(paymentFormData.amountPaid),
+        amountPaid: selectedActiveService.amountPaid, // Use the agreed amount from the service
         paymentMethod: paymentFormData.paymentMethod as 'Cash' | 'Mpesa',
         attendant: selectedActiveService.attendant,
         supervisorAccount: user?.email || user?.name || 'unknown',
@@ -1051,6 +1056,17 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
         </Card>
       </div>
 
+      {/* Scroll to Top Button */}
+      <div className="fixed bottom-6 right-6 z-50">
+        <Button
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          size="sm"
+          className="rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg"
+        >
+          <ArrowUp className="h-4 w-4" />
+        </Button>
+      </div>
+
       {/* Active Services Table */}
       <Card className="border-l-4 border-l-orange-500 bg-orange-50/30">
         <CardHeader className="pb-4">
@@ -1104,6 +1120,9 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
                     <div className="flex justify-between items-start">
                       <div className="font-medium text-orange-800">{service.registrationNumber}</div>
                       <span className="text-xs text-gray-500">{formatDate(service.date)}</span>
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      <span className="font-medium">Supervisor:</span> {service.supervisorName || 'N/A'}
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-sm">
                       <div><span className="font-medium text-gray-600">Model:</span> {service.carModel}</div>
@@ -1163,18 +1182,20 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
                 <TableRow className="bg-muted/50">
                   <TableHead className="font-semibold py-4 px-4">Date</TableHead>
                   <TableHead className="font-semibold py-4 px-4">Registration</TableHead>
-                  <TableHead className="font-semibold py-4 px-4">Model</TableHead>
                   <TableHead className="font-semibold py-4 px-4">Vehicle Type</TableHead>
+                  <TableHead className="font-semibold py-4 px-4">Model</TableHead>
                   <TableHead className="font-semibold py-4 px-4">Services</TableHead>
                   <TableHead className="font-semibold py-4 px-4">Amount</TableHead>
                   <TableHead className="font-semibold py-4 px-4">Attendant</TableHead>
+                  <TableHead className="font-semibold py-4 px-4">Supervisor</TableHead>
+                  <TableHead className="font-semibold py-4 px-4 text-center">Payment</TableHead>
                   <TableHead className="font-semibold py-4 px-4 text-center">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredActiveServices.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
+                    <TableCell colSpan={10} className="text-center py-12 text-muted-foreground">
                       <div className="text-6xl mb-4">🚗</div>
                       <div className="text-lg font-semibold mb-2">No Active Services</div>
                       <div className="text-sm mb-2">All services are completed</div>
@@ -1185,8 +1206,8 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
                     <TableRow key={service.id} className="hover:bg-muted/50">
                       <TableCell className="font-medium py-4 px-4">{formatDate(service.date)}</TableCell>
                       <TableCell className="font-medium py-4 px-4">{service.registrationNumber}</TableCell>
-                      <TableCell className="py-4 px-4">{service.carModel}</TableCell>
                       <TableCell className="py-4 px-4">{service.vehicleType}</TableCell>
+                      <TableCell className="py-4 px-4">{service.carModel}</TableCell>
                       <TableCell className="py-4 px-4 max-w-xs">
                         <div className="truncate" title={service.serviceOffered.join(', ')}>
                           {service.serviceOffered.join(', ')}
@@ -1196,6 +1217,9 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
                         KSh {service.amountPaid?.toLocaleString() || 0}
                       </TableCell>
                       <TableCell className="py-4 px-4">{service.attendant}</TableCell>
+                      <TableCell className="py-4 px-4 text-sm text-gray-600">
+                        {service.supervisorName || 'N/A'}
+                      </TableCell>
                       <TableCell className="py-4 px-4 text-center">
                         <Button
                           onClick={() => handlePayClick(service)}
@@ -1205,13 +1229,6 @@ export function ServiceManagement({ records, onAddRecord, onUpdateRecord, onDele
                           <DollarSign className="mr-2 h-4 w-4" />
                           Pay
                         </Button>
-                      </TableCell>
-                      <TableCell className="py-4 px-4 text-center text-gray-400">
-                        -
-                      </TableCell>
-                      <TableCell className="py-4 px-4">{service.attendant}</TableCell>
-                      <TableCell className="py-4 px-4 text-sm text-gray-600">
-                        {user?.name || 'Unknown'}
                       </TableCell>
                       <TableCell className="py-4 px-4 text-center">
                         <div className="flex gap-2 justify-center">
