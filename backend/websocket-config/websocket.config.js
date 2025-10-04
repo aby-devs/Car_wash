@@ -2,7 +2,7 @@ const frontend_url = process.env.FRONTEND_URL;
 module.exports = {
   // CORS configuration for Socket.io
   cors: {
-    origin: frontend_url || 'https://car-wash-2obw.onrender.com',
+        origin: frontend_url || 'https://cloud9shinewash.top',
     methods: ['GET', 'POST'],
     credentials: true
   },
