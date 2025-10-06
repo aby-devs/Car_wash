@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Car, DollarSign, Users, Calendar, TrendingUp, Clock } from "lucide-react";
+import { Car, DollarSign, Users, Calendar, TrendingUp, Clock, CreditCard } from "lucide-react";
 import { CarWashRecord, DashboardStats } from "./CarWashRecord";
 import heroImage from "@/assets/car-wash-hero.jpg";
 
@@ -22,6 +22,9 @@ export function Dashboard({ records, dashboardStats, todayStats, weekStats, mont
   
   // Calculate pending services count (services with status 'active' are pending, or no status means pending)
   const pendingServices = dashboardStats?.pendingServices ?? records.filter(r => r.status === 'active' || !r.status).length;
+  
+  // Calculate pending bills amount (sum of amountPaid for all pending services)
+  const pendingBillsAmount = records.filter(r => r.status === 'active' || !r.status).reduce((sum, record) => sum + record.amountPaid, 0);
   
   // Use backend payment breakdown if available - only count completed payments (status: 'completed')
   const mpesaCount = dashboardStats?.paymentBreakdown?.mpesa?.count ?? records.filter(r => r.paymentMethod === 'Mpesa' && r.status === 'completed').length;
@@ -95,6 +98,14 @@ export function Dashboard({ records, dashboardStats, todayStats, weekStats, mont
       bgColor: "bg-red-50"
     },
     {
+      title: "Pending Bills",
+      value: `KSh ${pendingBillsAmount.toLocaleString()}`,
+      subtitle: "Amount outstanding",
+      icon: CreditCard,
+      color: "text-amber-600",
+      bgColor: "bg-amber-50"
+    },
+    {
       title: "Total Services",
       value: totalServices.toString(),
       subtitle: `This Month: ${monthStats?.totalServices ?? monthRecords.length}`,
@@ -133,7 +144,7 @@ export function Dashboard({ records, dashboardStats, todayStats, weekStats, mont
   return (
     <div className="space-y-6">
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-6">
         {stats.map((stat, index) => (
           <Card key={index} className="hover:shadow-lg transition-all duration-300">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-3 pt-3 md:px-6 md:pt-6">
