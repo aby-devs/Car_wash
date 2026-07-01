@@ -133,8 +133,9 @@ class ApiService {
       }
 
       if (!response.ok) {
-        // Don't throw for 401/400 errors in auth endpoints - let the calling code handle them
-        if (endpoint.includes('/auth/') && (response.status === 401 || response.status === 400)) {
+        const isAuthRequest = baseURL === AUTH_BASE_URL;
+        // Don't throw for expected unauthenticated responses on auth routes
+        if (isAuthRequest && (response.status === 401 || response.status === 400)) {
           return data;
         }
         throw new Error(data.message || `HTTP error! status: ${response.status}`);
