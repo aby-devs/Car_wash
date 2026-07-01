@@ -1,22 +1,18 @@
-const jwt = require('jsonwebtoken');
 const authService = require('../services/authService');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-this-in-production';
-
-// Middleware to verify JWT token for protected routes
+// Simple auth: client sends X-User-Id header after login/signup
 const verifyToken = async (req, res, next) => {
   try {
-    const token = req.cookies.accessToken;
+    const userId = req.headers['x-user-id'];
 
-    if (!token) {
+    if (!userId) {
       return res.status(401).json({
         success: false,
         message: 'Authentication required',
       });
     }
 
-    const decoded = jwt.verify(token, JWT_SECRET);
-    const profile = await authService.getUserProfile(decoded.userId);
+    const profile = await authService.getUserProfile(userId);
 
     if (!profile) {
       return res.status(401).json({
@@ -28,16 +24,10 @@ const verifyToken = async (req, res, next) => {
     req.user = authService.formatPublicUser(profile);
     next();
   } catch (error) {
-    if (error.name === 'TokenExpiredError') {
-      return res.status(401).json({
-        success: false,
-        message: 'Token has expired',
-      });
-    }
-
+    console.error('Auth middleware error:', error);
     return res.status(401).json({
       success: false,
-      message: 'Invalid token',
+      message: 'Authentication failed',
     });
   }
 };
@@ -63,5 +53,4 @@ const requireManager = (req, res, next) => {
 module.exports = {
   verifyToken,
   requireManager,
-  JWT_SECRET,
 };

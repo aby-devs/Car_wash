@@ -8,8 +8,6 @@ router.post('/login', AuthLogic.login);
 router.post('/signup', AuthLogic.signup);
 router.post('/logout', AuthLogic.logout);
 router.get('/me', AuthLogic.getSession);
-router.get('/verify', AuthLogic.getSession);
-router.post('/refresh', AuthLogic.getSession);
 router.post('/create-user', AuthLogic.createUser); // For manual user creation
 
 // Settings routes

@@ -1,6 +1,19 @@
 // API service for communicating with the backend
 import { API_BASE_URL } from '@/lib/api-config';
 
+const USER_STORAGE_KEY = 'car_wash_user';
+
+const getStoredUserId = (): string | null => {
+  try {
+    const saved = localStorage.getItem(USER_STORAGE_KEY);
+    if (!saved) return null;
+    const user = JSON.parse(saved);
+    return user?.userId ?? null;
+  } catch {
+    return null;
+  }
+};
+
 const BASE_URL = API_BASE_URL;
 const RECORDS_BASE_URL = `${BASE_URL}/api/records`;
 const AUTH_BASE_URL = `${BASE_URL}/api/auth`;
@@ -106,12 +119,13 @@ class ApiService {
     const baseURL = options.baseURL || BASE_URL;
     const url = `${baseURL}${endpoint}`;
     
+    const userId = getStoredUserId();
     const defaultOptions: RequestInit = {
       headers: {
         'Content-Type': 'application/json',
+        ...(userId ? { 'X-User-Id': userId } : {}),
         ...options.headers,
       },
-      credentials: 'include', // Include cookies in requests
     };
 
     // Remove baseURL from options before passing to fetch

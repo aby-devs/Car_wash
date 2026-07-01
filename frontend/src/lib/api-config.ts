@@ -1,7 +1,4 @@
-// In dev, call the backend URL from .env. In production, use same-origin relative URLs
-// so auth cookies are always sent (frontend is served from backend/dist).
-export const API_BASE_URL = import.meta.env.DEV
-  ? (import.meta.env.VITE_API_URL || 'http://localhost:5000')
-  : '';
+// Same-origin API: Vite proxies /api to the backend in dev; production serves from Express.
+export const API_BASE_URL = '';
 
-export const SOCKET_URL = API_BASE_URL || window.location.origin;
+export const SOCKET_URL = window.location.origin;

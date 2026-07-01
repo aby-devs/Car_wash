@@ -7,8 +7,6 @@ exports.login = authService.login;
 exports.signup = authService.signup;
 exports.logout = authService.logout;
 exports.getSession = authService.getSession;
-exports.verifyToken = authService.getSession;
-exports.refreshToken = authService.getSession;
 
 // Helper function to create a user (for manual user creation)
 exports.createUser = async (req, res) => {
@@ -464,10 +462,6 @@ exports.deleteUser = async (req, res) => {
     // Delete user from Realtime Database
     await userRef.remove();
 
-    // Delete user's refresh tokens
-    const refreshTokenRef = realtime_db.ref(`refreshTokens/${userId}`);
-    await refreshTokenRef.remove();
-
     res.status(200).json({
       success: true,
       message: 'User deleted successfully from both database and authentication'
@@ -488,8 +482,6 @@ module.exports = {
   signup: exports.signup,
   logout: exports.logout,
   getSession: exports.getSession,
-  verifyToken: exports.verifyToken,
-  refreshToken: exports.refreshToken,
   createUser: exports.createUser,
   get_settings: exports.get_settings,
   update_settings: exports.update_settings,

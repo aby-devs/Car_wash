@@ -1,21 +1,7 @@
-const jwt = require('jsonwebtoken');
 const { admin, realtime_db } = require('../configs/firebase_db');
-const { JWT_SECRET } = require('../middleware/auth');
 
 const FIREBASE_API_KEY = process.env.FIREBASE_API_KEY;
 const FIREBASE_SIGN_IN_URL = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${FIREBASE_API_KEY}`;
-
-const ACCESS_TOKEN_MAX_AGE_MS = 15 * 60 * 1000;
-const REFRESH_TOKEN_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
-const isProduction = process.env.NODE_ENV === 'production';
-
-const cookieOptions = (maxAge) => ({
-  httpOnly: true,
-  secure: isProduction,
-  sameSite: 'lax',
-  path: '/',
-  maxAge,
-});
 
 const formatPublicUser = (profile) => ({
   userId: profile.userId,
@@ -24,58 +10,9 @@ const formatPublicUser = (profile) => ({
   role: profile.role || 'supervisor',
 });
 
-const generateTokens = (userId, email) => {
-  const accessToken = jwt.sign({ userId, email }, JWT_SECRET, { expiresIn: '15m' });
-  const refreshToken = jwt.sign({ userId, email, type: 'refresh' }, JWT_SECRET, { expiresIn: '7d' });
-  return { accessToken, refreshToken };
-};
-
-const setAuthCookies = (res, accessToken, refreshToken) => {
-  res.cookie('accessToken', accessToken, cookieOptions(ACCESS_TOKEN_MAX_AGE_MS));
-  res.cookie('refreshToken', refreshToken, cookieOptions(REFRESH_TOKEN_MAX_AGE_MS));
-};
-
-const clearAuthCookies = (res) => {
-  const clearOptions = { path: '/', secure: isProduction, sameSite: 'lax' };
-  res.clearCookie('accessToken', clearOptions);
-  res.clearCookie('refreshToken', clearOptions);
-};
-
 const getUserProfile = async (userId) => {
   const snapshot = await realtime_db.ref(`users/${userId}`).once('value');
   return snapshot.exists() ? snapshot.val() : null;
-};
-
-const saveRefreshToken = async (userId, email, refreshToken) => {
-  await realtime_db.ref(`refreshTokens/${userId}`).set({
-    token: refreshToken,
-    userId,
-    email,
-    createdAt: admin.database.ServerValue.TIMESTAMP,
-    expiresAt: Date.now() + REFRESH_TOKEN_MAX_AGE_MS,
-  });
-};
-
-const revokeRefreshToken = async (userId) => {
-  await realtime_db.ref(`refreshTokens/${userId}`).remove();
-};
-
-const validateStoredRefreshToken = async (userId, refreshToken) => {
-  const snapshot = await realtime_db.ref(`refreshTokens/${userId}`).once('value');
-  if (!snapshot.exists()) {
-    return { valid: false, message: 'Session not found' };
-  }
-
-  const tokenData = snapshot.val();
-  if (tokenData.token !== refreshToken) {
-    return { valid: false, message: 'Invalid session' };
-  }
-  if (Date.now() > tokenData.expiresAt) {
-    await revokeRefreshToken(userId);
-    return { valid: false, message: 'Session expired' };
-  }
-
-  return { valid: true };
 };
 
 const ensureUserProfile = async (userId, { email, name, role = 'supervisor' }) => {
@@ -103,13 +40,6 @@ const ensureUserProfile = async (userId, { email, name, role = 'supervisor' }) =
   });
 
   return { ...profile, email: profile.email || email };
-};
-
-const createSession = async (res, userId, email, profile) => {
-  const { accessToken, refreshToken } = generateTokens(userId, email);
-  await saveRefreshToken(userId, email, refreshToken);
-  setAuthCookies(res, accessToken, refreshToken);
-  return formatPublicUser(profile);
 };
 
 const signInWithFirebase = async (email, password) => {
@@ -143,42 +73,6 @@ const signInWithFirebase = async (email, password) => {
   };
 };
 
-const verifyAccessToken = (token) => {
-  try {
-    return { valid: true, decoded: jwt.verify(token, JWT_SECRET) };
-  } catch (error) {
-    if (error.name === 'TokenExpiredError') {
-      return { valid: false, expired: true };
-    }
-    return { valid: false, expired: false };
-  }
-};
-
-const rotateSession = async (res, refreshToken) => {
-  let decoded;
-  try {
-    decoded = jwt.verify(refreshToken, JWT_SECRET);
-  } catch {
-    return null;
-  }
-
-  if (decoded.type !== 'refresh') {
-    return null;
-  }
-
-  const validation = await validateStoredRefreshToken(decoded.userId, refreshToken);
-  if (!validation.valid) {
-    return null;
-  }
-
-  const profile = await getUserProfile(decoded.userId);
-  if (!profile) {
-    return null;
-  }
-
-  return createSession(res, decoded.userId, decoded.email, profile);
-};
-
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -194,7 +88,7 @@ exports.login = async (req, res) => {
 
     const { userId, email: userEmail, name } = authResult.data;
     const profile = await ensureUserProfile(userId, { email: userEmail, name });
-    const user = await createSession(res, userId, userEmail, profile);
+    const user = formatPublicUser(profile);
 
     return res.status(200).json({
       success: true,
@@ -251,12 +145,10 @@ exports.signup = async (req, res) => {
       role,
     });
 
-    const user = await createSession(res, firebaseUser.uid, trimmedEmail, profile);
-
     return res.status(201).json({
       success: true,
       message: 'Account created successfully',
-      data: { user },
+      data: { user: formatPublicUser(profile) },
     });
   } catch (error) {
     console.error('Signup error:', error);
@@ -266,22 +158,15 @@ exports.signup = async (req, res) => {
 
 exports.logout = async (req, res) => {
   try {
-    const refreshToken = req.cookies.refreshToken;
+    const userId = req.headers['x-user-id'];
 
-    if (refreshToken) {
-      try {
-        const decoded = jwt.verify(refreshToken, JWT_SECRET);
-        await revokeRefreshToken(decoded.userId);
-        await realtime_db.ref(`users/${decoded.userId}`).update({
-          isActive: false,
-          lastLogout: admin.database.ServerValue.TIMESTAMP,
-        });
-      } catch {
-        // Ignore invalid tokens during logout
-      }
+    if (userId) {
+      await realtime_db.ref(`users/${userId}`).update({
+        isActive: false,
+        lastLogout: admin.database.ServerValue.TIMESTAMP,
+      });
     }
 
-    clearAuthCookies(res);
     return res.status(200).json({ success: true, message: 'Logout successful' });
   } catch (error) {
     console.error('Logout error:', error);
@@ -291,41 +176,27 @@ exports.logout = async (req, res) => {
 
 exports.getSession = async (req, res) => {
   try {
-    const accessToken = req.cookies.accessToken;
-    const refreshToken = req.cookies.refreshToken;
+    const userId = req.headers['x-user-id'];
 
-    if (accessToken) {
-      const verification = verifyAccessToken(accessToken);
-      if (verification.valid) {
-        const profile = await getUserProfile(verification.decoded.userId);
-        if (profile) {
-          return res.status(200).json({
-            success: true,
-            message: 'Session active',
-            data: { user: formatPublicUser(profile) },
-          });
-        }
-      }
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Not authenticated' });
     }
 
-    if (refreshToken) {
-      const user = await rotateSession(res, refreshToken);
-      if (user) {
-        return res.status(200).json({
-          success: true,
-          message: 'Session refreshed',
-          data: { user },
-        });
-      }
+    const profile = await getUserProfile(userId);
+    if (!profile) {
+      return res.status(401).json({ success: false, message: 'User not found' });
     }
 
-    return res.status(401).json({ success: false, message: 'Not authenticated' });
+    return res.status(200).json({
+      success: true,
+      message: 'Session active',
+      data: { user: formatPublicUser(profile) },
+    });
   } catch (error) {
     console.error('Session error:', error);
     return res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
 
-exports.clearAuthCookies = clearAuthCookies;
 exports.formatPublicUser = formatPublicUser;
 exports.getUserProfile = getUserProfile;
