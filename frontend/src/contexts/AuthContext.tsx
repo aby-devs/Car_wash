@@ -58,24 +58,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             setInitialized(true);
             return;
           }
-        } catch (verifyError) {
-          // No valid session — try refresh below
-        }
 
-        // If verify failed, try to refresh the token
-        try {
-          const refreshSuccess = await refreshAuthToken();
-          if (refreshSuccess) {
-            // Refresh was successful, user should be set in refreshAuthToken
-            setLoading(false);
-            setInitialized(true);
-            return;
+          // Only try refresh if a session exists but the access token expired
+          if (response.message === 'Token has expired') {
+            const refreshSuccess = await refreshAuthToken();
+            if (refreshSuccess) {
+              setLoading(false);
+              setInitialized(true);
+              return;
+            }
           }
-        } catch (refreshError) {
+        } catch (verifyError) {
           // Not authenticated
         }
 
-        // If both verify and refresh failed, user is not authenticated
         setUser(null);
         setLoading(false);
         setInitialized(true);
@@ -125,10 +121,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (response.success && response.data) {
         setUser(response.data.user);
         return true;
-      } else {
-        console.error('Login failed:', response.message);
-        return false;
       }
+
+      console.error('Login failed:', response.message);
+      return false;
     } catch (error) {
       console.error('AuthContext: Login failed:', error);
       return false;

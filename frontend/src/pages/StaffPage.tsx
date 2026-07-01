@@ -25,10 +25,11 @@ import {
   Wallet
 } from "lucide-react";
 import { apiService, StaffCommissionData } from "@/services/api";
+import { API_BASE_URL } from "@/lib/api-config";
 import { useToast } from "@/hooks/use-toast";
 import * as XLSX from 'xlsx';
 
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const BASE_URL = API_BASE_URL || window.location.origin;
 
 export function StaffPage() {
   const [allRecords, setAllRecords] = useState<any[]>([]);

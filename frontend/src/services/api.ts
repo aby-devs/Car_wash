@@ -1,5 +1,7 @@
 // API service for communicating with the backend
-const BASE_URL = import.meta.env.VITE_API_URL || 'https://cloud9shinewash.top';
+import { API_BASE_URL } from '@/lib/api-config';
+
+const BASE_URL = API_BASE_URL;
 const RECORDS_BASE_URL = `${BASE_URL}/api/records`;
 const AUTH_BASE_URL = `${BASE_URL}/api/auth`;
 const STAFF_BASE_URL = `${BASE_URL}/api/staff`;

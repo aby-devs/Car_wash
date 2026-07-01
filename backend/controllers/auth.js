@@ -7,6 +7,22 @@ const { JWT_SECRET } = require('../middleware/auth');
 const FIREBASE_API_KEY = process.env.FIREBASE_API_KEY || 'your-firebase-api-key';
 const FIREBASE_AUTH_URL = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${FIREBASE_API_KEY}`;
 
+const isProduction = process.env.NODE_ENV === 'production';
+
+const getCookieOptions = (maxAge) => ({
+  httpOnly: true,
+  secure: isProduction,
+  sameSite: 'lax',
+  path: '/',
+  maxAge,
+});
+
+const clearAuthCookies = (res) => {
+  const clearOptions = { path: '/', secure: isProduction, sameSite: 'lax' };
+  res.clearCookie('accessToken', clearOptions);
+  res.clearCookie('refreshToken', clearOptions);
+};
+
 // Generate JWT tokens
 const generateTokens = (userId, email) => {
   const accessToken = jwt.sign(
@@ -42,10 +58,10 @@ const verifyFirebaseCredentials = async (email, password) => {
     const data = await response.json();
 
     if (!response.ok) {
-      if (data.error?.message === 'INVALID_PASSWORD' || data.error?.message === 'EMAIL_NOT_FOUND') {
+      if (data.error?.message === 'INVALID_PASSWORD' || data.error?.message === 'EMAIL_NOT_FOUND' || data.error?.message === 'INVALID_LOGIN_CREDENTIALS') {
         return { success: false, message: 'Invalid email or password' };
       }
-      throw new Error(data.error?.message || 'Authentication failed');
+      return { success: false, message: data.error?.message || 'Authentication failed' };
     }
 
     return { 
@@ -132,19 +148,8 @@ exports.login = async (req, res) => {
     // Login session tracking removed for simplicity
 
     // Set HTTP-only cookies
-    res.cookie('accessToken', accessToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 15 * 60 * 1000 // 15 minutes
-    });
-
-    res.cookie('refreshToken', refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-    });
+    res.cookie('accessToken', accessToken, getCookieOptions(15 * 60 * 1000));
+    res.cookie('refreshToken', refreshToken, getCookieOptions(7 * 24 * 60 * 60 * 1000));
 
     res.status(200).json({
       success: true,
@@ -198,9 +203,7 @@ exports.logout = async (req, res) => {
       }
     }
 
-    // Clear cookies
-    res.clearCookie('accessToken');
-    res.clearCookie('refreshToken');
+    clearAuthCookies(res);
 
     res.status(200).json({
       success: true,
@@ -297,19 +300,8 @@ exports.refreshToken = async (req, res) => {
     });
 
     // Set new cookies
-    res.cookie('accessToken', accessToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 15 * 60 * 1000 // 15 minutes
-    });
-
-    res.cookie('refreshToken', newRefreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-    });
+    res.cookie('accessToken', accessToken, getCookieOptions(15 * 60 * 1000));
+    res.cookie('refreshToken', newRefreshToken, getCookieOptions(7 * 24 * 60 * 60 * 1000));
 
     res.status(200).json({
       success: true,
