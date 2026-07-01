@@ -168,24 +168,15 @@ exports.add_record = async (req, res) => {
 
 // Get all car wash records with optional filtering
 exports.get_records = async (req, res) => {
+  const { paymentMethod, attendant, startDate, endDate, limit = 100 } = req.query;
+
   try {
-    const { paymentMethod, attendant, startDate, endDate, limit = 100 } = req.query;
-    
-    let query = service_db.collection('records');
+    // Firestore requires a composite index when combining date range filters
+    // with orderBy on a different field. Fetch ordered results and filter in memory.
+    const snapshot = await service_db.collection('records')
+      .orderBy('createdAt', 'desc')
+      .get();
 
-    // Apply filters - prioritize date range first, then other filters
-    if (startDate) {
-      query = query.where('date', '>=', startDate);
-    }
-    
-    if (endDate) {
-      query = query.where('date', '<=', endDate);
-    }
-
-    // Order by createdAt timestamp (newest first) and limit
-    query = query.orderBy('createdAt', 'desc').limit(parseInt(limit));
-
-    const snapshot = await query.get();
     let records = [];
 
     snapshot.forEach(doc => {
@@ -195,17 +186,23 @@ exports.get_records = async (req, res) => {
       });
     });
 
+    if (startDate) {
+      records = records.filter(record => record.date >= startDate);
+    }
 
-    // Apply client-side filtering for fields that don't have composite indexes
-    
+    if (endDate) {
+      records = records.filter(record => record.date <= endDate);
+    }
+
     if (paymentMethod && paymentMethod !== 'All') {
       records = records.filter(record => record.paymentMethod === paymentMethod);
     }
-    
+
     if (attendant) {
       records = records.filter(record => record.attendant === attendant);
     }
 
+    records = records.slice(0, parseInt(limit));
 
     res.status(200).json({
       success: true,

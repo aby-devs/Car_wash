@@ -29,7 +29,7 @@ A full-stack car wash management application with React frontend and Node.js bac
 ## Setup Instructions
 
 ### Prerequisites
-- Node.js (v16 or higher)
+- Node.js 24 and npm. Use [nvm](https://github.com/nvm-sh/nvm) and run `nvm use` in the project root (reads `.nvmrc`).
 - Firebase project with Firestore enabled
 - Firebase service account key
 

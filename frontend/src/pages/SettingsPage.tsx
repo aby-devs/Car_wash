@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -28,8 +27,6 @@ import {
 } from '@/components/ui/alert-dialog';
 import { 
   Loader2, 
-  UserPlus, 
-  Shield, 
   User, 
   Mail, 
   Calendar, 
@@ -51,7 +48,6 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface AppSettings {
-  signupEnabled: boolean;
   availableServices?: string[];
 }
 
@@ -67,7 +63,6 @@ interface User {
 
 const SettingsPage: React.FC = () => {
   const [settings, setSettings] = useState<AppSettings>({
-    signupEnabled: true,
     availableServices: []
   });
   
@@ -96,8 +91,6 @@ const SettingsPage: React.FC = () => {
       
       if (response.success && response.data) {
         setSettings({
-          // Only load signup settings for managers
-          signupEnabled: user?.role === 'manager' ? (response.data.signupEnabled !== undefined ? response.data.signupEnabled : true) : true,
           availableServices: response.data.availableServices || []
         });
       }
@@ -128,33 +121,6 @@ const SettingsPage: React.FC = () => {
       });
     } finally {
       setUsersLoading(false);
-    }
-  };
-
-  const handleSignupToggle = async (enabled: boolean) => {
-    // Only allow managers to toggle signup settings
-    if (user?.role !== 'manager') {
-      return;
-    }
-    
-    try {
-      setError('');
-      
-      const newSettings = { signupEnabled: enabled };
-      const response = await apiService.updateSettings(newSettings);
-      
-      if (response.success) {
-        setSettings(prev => ({ ...prev, ...newSettings }));
-        toast({
-          title: "Settings Updated",
-          description: `User registration has been ${enabled ? 'enabled' : 'disabled'}.`,
-        });
-      } else {
-        setError('Failed to save settings');
-      }
-    } catch (err) {
-      console.error('Failed to save settings:', err);
-      setError('Failed to save settings');
     }
   };
 
@@ -328,49 +294,7 @@ const SettingsPage: React.FC = () => {
       )}
 
       {/* Settings Cards */}
-      <div className={`grid grid-cols-1 gap-3 sm:gap-4 md:gap-6 ${user?.role === 'manager' ? 'lg:grid-cols-2' : 'lg:grid-cols-1 max-w-md'}`}>
-        {/* User Registration Settings - Only for Managers */}
-        {user?.role === 'manager' && (
-          <Card className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-blue-500">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-3 pt-3 md:px-6 md:pt-6">
-            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
-              User Registration
-            </CardTitle>
-            <div className="p-1.5 md:p-2 rounded-lg bg-blue-50">
-              <UserPlus className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600" />
-            </div>
-          </CardHeader>
-          <CardContent className="px-3 pb-3 md:px-6 md:pb-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div className="space-y-1 flex-1">
-                <Label htmlFor="signup-enabled" className="text-sm font-semibold">
-                  Allow New Registrations
-                </Label>
-                <p className="text-xs text-muted-foreground">
-                  Enable/disable new user signups
-                </p>
-              </div>
-              <div className="flex-shrink-0">
-                <Switch
-                  id="signup-enabled"
-                  checked={settings.signupEnabled}
-                  onCheckedChange={handleSignupToggle}
-                />
-              </div>
-            </div>
-            
-            {!settings.signupEnabled && (
-              <Alert className="mt-3 text-xs">
-                <Shield className="h-3 w-3" />
-                <AlertDescription className="text-xs">
-                  Registration is disabled. New users cannot create accounts.
-                </AlertDescription>
-              </Alert>
-            )}
-          </CardContent>
-        </Card>
-        )}
-
+      <div className="grid grid-cols-1 gap-3 sm:gap-4 md:gap-6 lg:grid-cols-1 max-w-md">
         {/* Current User Info */}
         <Card className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-green-500">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-3 pt-3 md:px-6 md:pt-6">

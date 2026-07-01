@@ -407,22 +407,6 @@ exports.signup = async (req, res) => {
       });
     }
 
-    // Check if signup is enabled
-    const settingsRef = service_db.collection('settings').doc('app');
-    const settingsDoc = await settingsRef.get();
-    
-    let settings = { signupEnabled: true }; // Default to enabled
-    if (settingsDoc.exists) {
-      settings = { ...settings, ...settingsDoc.data() };
-    }
-
-    if (!settings.signupEnabled) {
-      return res.status(403).json({
-        success: false,
-        message: 'User registration is currently disabled'
-      });
-    }
-
     // Create user with Firebase Auth REST API
     const FIREBASE_SIGNUP_URL = `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${FIREBASE_API_KEY}`;
     
@@ -594,8 +578,7 @@ exports.get_settings = async (req, res) => {
       workingHours: {
         open: '08:00',
         close: '18:00'
-      },
-      signupEnabled: true
+      }
     };
 
     if (settingsDoc.exists) {

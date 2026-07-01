@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,8 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
-import { Loader2, Eye, EyeOff, Shield } from 'lucide-react';
-import { apiService } from '@/services/api';
+import { Loader2, Eye, EyeOff } from 'lucide-react';
 
 const SignupPage: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -22,30 +21,9 @@ const SignupPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
-  const [signupEnabled, setSignupEnabled] = useState(true);
-  const [checkingSignupStatus, setCheckingSignupStatus] = useState(true);
 
   const { signup } = useAuth();
   const navigate = useNavigate();
-
-  // Check if signup is enabled
-  useEffect(() => {
-    const checkSignupStatus = async () => {
-      try {
-        const response = await apiService.getSettings();
-        if (response.success && response.data) {
-          setSignupEnabled(response.data.signupEnabled !== false);
-        }
-      } catch (err) {
-        console.error('Failed to check signup status:', err);
-        setSignupEnabled(false); // Default to disabled if we can't check
-      } finally {
-        setCheckingSignupStatus(false);
-      }
-    };
-
-    checkSignupStatus();
-  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -107,46 +85,6 @@ const SignupPage: React.FC = () => {
       setLoading(false);
     }
   };
-
-  // Show loading while checking signup status
-  if (checkingSignupStatus) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-        <Card className="w-full max-w-md">
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-              <p className="text-gray-600">Checking registration status...</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  // Show disabled message if signup is not enabled
-  if (!signupEnabled) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-        <Card className="w-full max-w-md">
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
-                <Shield className="h-6 w-6 text-red-600" />
-              </div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Registration Disabled</h2>
-              <p className="text-gray-600 mb-4">
-                User registration is currently disabled. Please contact your administrator for account access.
-              </p>
-              <Button asChild className="w-full">
-                <Link to="/login">Go to Login</Link>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
 
   if (success) {
     return (
