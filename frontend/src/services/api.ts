@@ -245,24 +245,24 @@ class ApiService {
   }
 
   // Auth API
-  async login(email: string, password: string): Promise<ApiResponse<{ 
-    user: { userId: string; email: string; name: string; role: string } 
+  async getSession(): Promise<ApiResponse<{ user: { userId: string; email: string; name: string; role: string } }>> {
+    return this.request('/me', { baseURL: AUTH_BASE_URL });
+  }
+
+  async login(email: string, password: string): Promise<ApiResponse<{
+    user: { userId: string; email: string; name: string; role: string }
   }>> {
-    return this.request<{ 
-      user: { userId: string; email: string; name: string; role: string } 
-    }>('/login', {
+    return this.request('/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
       baseURL: AUTH_BASE_URL,
     });
   }
 
-  async signup(email: string, password: string, role?: string): Promise<ApiResponse<{ 
-    user: { userId: string; email: string; name: string; role: string } 
+  async signup(email: string, password: string, role?: string): Promise<ApiResponse<{
+    user: { userId: string; email: string; name: string; role: string }
   }>> {
-    return this.request<{ 
-      user: { userId: string; email: string; name: string; role: string } 
-    }>('/signup', {
+    return this.request('/signup', {
       method: 'POST',
       body: JSON.stringify({ email, password, role }),
       baseURL: AUTH_BASE_URL,
@@ -272,19 +272,6 @@ class ApiService {
   async logout(): Promise<ApiResponse<void>> {
     return this.request('/logout', {
       method: 'POST',
-      baseURL: AUTH_BASE_URL,
-    });
-  }
-
-  async refreshToken(): Promise<ApiResponse<void>> {
-    return this.request('/refresh', {
-      method: 'POST',
-      baseURL: AUTH_BASE_URL,
-    });
-  }
-
-  async verifyToken(): Promise<ApiResponse<{ user: any }>> {
-    return this.request('/verify', {
       baseURL: AUTH_BASE_URL,
     });
   }

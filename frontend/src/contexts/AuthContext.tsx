@@ -1,173 +1,124 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { useLocation } from 'react-router-dom';
 import { apiService } from '@/services/api';
-
-interface User {
-  userId: string;
-  email: string;
-  name: string;
-  role: string;
-}
+import type { AuthUser, AuthResult } from '@/types/auth';
 
 interface AuthContextType {
-  user: User | null;
-  loading: boolean;
-  initialized: boolean;
-  login: (email: string, password: string) => Promise<boolean>;
-  signup: (email: string, password: string, role?: string) => Promise<boolean>;
+  user: AuthUser | null;
+  ready: boolean;
+  login: (email: string, password: string) => Promise<AuthResult>;
+  signup: (email: string, password: string, role?: string) => Promise<AuthResult>;
   logout: () => Promise<void>;
-  refreshAuthToken: () => Promise<boolean>;
   isAuthenticated: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const PUBLIC_PATHS = ['/login', '/signup'];
+
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
 };
 
-interface AuthProviderProps {
-  children: ReactNode;
-}
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [ready, setReady] = useState(false);
+  const location = useLocation();
 
-export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [initialized, setInitialized] = useState(false);
-
-  // Check if user is authenticated on app load (skip on public auth pages)
-  useEffect(() => {
-    const publicPaths = ['/login', '/signup'];
-    if (publicPaths.includes(window.location.pathname)) {
-      setLoading(false);
-      setInitialized(true);
-      return;
+  const loadSession = useCallback(async () => {
+    const response = await apiService.getSession();
+    if (response.success && response.data?.user) {
+      setUser(response.data.user);
+    } else {
+      setUser(null);
     }
+  }, []);
 
-    const checkAuth = async () => {
-      try {
-        // First, try to verify the token
-        try {
-          const response = await apiService.verifyToken();
-          if (response.success && response.data) {
-            setUser(response.data.user);
-            setLoading(false);
-            setInitialized(true);
-            return;
-          }
+  useEffect(() => {
+    let active = true;
 
-          // Only try refresh if a session exists but the access token expired
-          if (response.message === 'Token has expired') {
-            const refreshSuccess = await refreshAuthToken();
-            if (refreshSuccess) {
-              setLoading(false);
-              setInitialized(true);
-              return;
-            }
-          }
-        } catch (verifyError) {
-          // Not authenticated
+    const init = async () => {
+      if (PUBLIC_PATHS.includes(location.pathname)) {
+        if (active) {
+          setReady(true);
         }
+        return;
+      }
 
-        setUser(null);
-        setLoading(false);
-        setInitialized(true);
-      } catch (error) {
-        console.error('Auth check failed:', error);
-        setUser(null);
-        setLoading(false);
-        setInitialized(true);
+      await loadSession();
+      if (active) {
+        setReady(true);
       }
     };
 
-    checkAuth();
-  }, []);
+    setReady(false);
+    init();
 
-  const clearAuthData = () => {
+    return () => {
+      active = false;
+    };
+  }, [location.pathname, loadSession]);
+
+  const login = async (email: string, password: string): Promise<AuthResult> => {
+    try {
+      const response = await apiService.login(email, password);
+
+      if (response.success && response.data?.user) {
+        setUser(response.data.user);
+        return { success: true };
+      }
+
+      return { success: false, message: response.message || 'Login failed' };
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Login failed',
+      };
+    }
+  };
+
+  const signup = async (email: string, password: string, role?: string): Promise<AuthResult> => {
+    try {
+      const response = await apiService.signup(email, password, role);
+
+      if (response.success && response.data?.user) {
+        setUser(response.data.user);
+        return { success: true, message: response.message };
+      }
+
+      return { success: false, message: response.message || 'Signup failed' };
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Signup failed',
+      };
+    }
+  };
+
+  const logout = async () => {
+    try {
+      await apiService.logout();
+    } catch {
+      // Clear local session even if the API call fails
+    }
     setUser(null);
   };
 
-  const refreshAuthToken = async (): Promise<boolean> => {
-    try {
-      const response = await apiService.refreshToken();
-      if (response.success) {
-        // After successful refresh, get user data
-        try {
-          const verifyResponse = await apiService.verifyToken();
-          if (verifyResponse.success && verifyResponse.data) {
-            setUser(verifyResponse.data.user);
-            return true;
-          }
-        } catch (verifyError) {
-          console.error('Failed to get user data after refresh:', verifyError);
-          return false;
-        }
-        return true;
-      } else {
-        return false;
-      }
-    } catch (error) {
-      return false;
-    }
-  };
-
-  const login = async (email: string, password: string): Promise<boolean> => {
-    try {
-      const response = await apiService.login(email, password);
-      
-      if (response.success && response.data) {
-        setUser(response.data.user);
-        return true;
-      }
-
-      console.error('Login failed:', response.message);
-      return false;
-    } catch (error) {
-      console.error('AuthContext: Login failed:', error);
-      return false;
-    }
-  };
-
-  const signup = async (email: string, password: string, role?: string): Promise<boolean> => {
-    try {
-      const response = await apiService.signup(email, password, role);
-      if (response.success) {
-        return true;
-      } else {
-        console.error('Signup failed:', response.message);
-        return false;
-      }
-    } catch (error) {
-      console.error('AuthContext: Signup failed:', error);
-      return false;
-    }
-  };
-
-  const logout = async (): Promise<void> => {
-    try {
-      await apiService.logout();
-    } catch (error) {
-      console.error('Logout API call failed:', error);
-    }
-    clearAuthData();
-  };
-
-  const value: AuthContextType = {
-    user,
-    loading,
-    initialized,
-    login,
-    signup,
-    logout,
-    refreshAuthToken,
-    isAuthenticated: !!user
-  };
-
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider
+      value={{
+        user,
+        ready,
+        login,
+        signup,
+        logout,
+        isAuthenticated: !!user,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

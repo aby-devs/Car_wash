@@ -68,16 +68,15 @@ const SignupPage: React.FC = () => {
     setError('');
 
     try {
-      const success = await signup(formData.email, formData.password, formData.role);
+      const result = await signup(formData.email, formData.password, formData.role);
       
-      if (success) {
+      if (result.success) {
         setSuccess(true);
-        // Redirect to login page after successful signup
         setTimeout(() => {
-          navigate('/login');
-        }, 2000);
+          navigate('/');
+        }, 1500);
       } else {
-        setError('Signup failed. Please try again.');
+        setError(result.message || 'Signup failed. Please try again.');
       }
     } catch (err) {
       setError('An error occurred during signup. Please try again.');
@@ -99,10 +98,10 @@ const SignupPage: React.FC = () => {
               </div>
               <h2 className="text-2xl font-bold text-gray-900 mb-2">Account Created!</h2>
               <p className="text-gray-600 mb-4">
-                Your account has been created successfully. You will be redirected to the login page shortly.
+                Your account is ready. Redirecting to the dashboard...
               </p>
               <Button asChild className="w-full">
-                <Link to="/login">Go to Login</Link>
+                <Link to="/">Go to Dashboard</Link>
               </Button>
             </div>
           </CardContent>

@@ -14,10 +14,9 @@ export function RoleProtectedRoute({
   allowedRoles, 
   redirectTo = '/' 
 }: RoleProtectedRouteProps) {
-  const { user, loading, initialized } = useAuth();
+  const { user, ready } = useAuth();
 
-  // Show loading spinner while authentication is being checked
-  if (loading || !initialized) {
+  if (!ready) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-blue-50">
         <div className="text-center">

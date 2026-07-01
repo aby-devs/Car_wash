@@ -1,14 +1,15 @@
 const express = require('express');
 const router = express.Router();
 const { AuthLogic } = require('../controllers');
-const { verifyToken, verifyRefreshToken, requireManager } = require('../middleware/auth');
+const { verifyToken, requireManager } = require('../middleware/auth');
 
 // Authentication routes
 router.post('/login', AuthLogic.login);
 router.post('/signup', AuthLogic.signup);
 router.post('/logout', AuthLogic.logout);
-router.post('/refresh', AuthLogic.refreshToken);
-router.get('/verify', verifyToken, AuthLogic.verifyToken);
+router.get('/me', AuthLogic.getSession);
+router.get('/verify', AuthLogic.getSession);
+router.post('/refresh', AuthLogic.getSession);
 router.post('/create-user', AuthLogic.createUser); // For manual user creation
 
 // Settings routes

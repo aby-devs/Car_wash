@@ -39,21 +39,20 @@ export function LoginPage() {
     setError(null);
 
     try {
-      const success = await login(formData.email, formData.password);
+      const result = await login(formData.email, formData.password);
       
-      if (success) {
+      if (result.success) {
         toast({
           title: "Login Successful",
           description: "Welcome back!",
         });
-
-        // Redirect to dashboard
         navigate('/');
       } else {
-        setError('Login failed. Please check your credentials.');
+        const message = result.message || 'Login failed. Please check your credentials.';
+        setError(message);
         toast({
           title: "Login Failed",
-          description: "Invalid email or password",
+          description: message,
           variant: "destructive"
         });
       }
