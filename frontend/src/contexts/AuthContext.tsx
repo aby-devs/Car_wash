@@ -1,8 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { apiService } from '@/services/api';
 
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-
 interface User {
   userId: string;
   email: string;
@@ -40,8 +38,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [initialized, setInitialized] = useState(false);
 
-  // Check if user is authenticated on app load
+  // Check if user is authenticated on app load (skip on public auth pages)
   useEffect(() => {
+    const publicPaths = ['/login', '/signup'];
+    if (publicPaths.includes(window.location.pathname)) {
+      setLoading(false);
+      setInitialized(true);
+      return;
+    }
+
     const checkAuth = async () => {
       try {
         // First, try to verify the token
@@ -54,8 +59,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             return;
           }
         } catch (verifyError) {
-          console.log('Token verification failed, trying refresh...');
-          // Token verification failed, try to refresh
+          // No valid session — try refresh below
         }
 
         // If verify failed, try to refresh the token
@@ -68,8 +72,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             return;
           }
         } catch (refreshError) {
-          console.log('Token refresh failed, user not authenticated');
-          // Both verify and refresh failed, user is not authenticated
+          // Not authenticated
         }
 
         // If both verify and refresh failed, user is not authenticated
@@ -108,11 +111,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
         return true;
       } else {
-        console.log('Token refresh failed:', response.message);
         return false;
       }
     } catch (error) {
-      console.log('Token refresh failed with error:', error);
       return false;
     }
   };
@@ -168,23 +169,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     refreshAuthToken,
     isAuthenticated: !!user
   };
-
-  
-  // Test backend connection
-  useEffect(() => {
-    const testBackend = async () => {
-      try {
-        const response = await fetch(`${BASE_URL}/api/auth/health`, {
-          credentials: 'include'
-        });
-        const data = await response.json();
-        console.log('Backend health check:', data);
-      } catch (error) {
-        console.error('Backend health check failed:', error);
-      }
-    };
-    testBackend();
-  }, []);
 
   return (
     <AuthContext.Provider value={value}>

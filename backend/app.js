@@ -9,6 +9,10 @@ const socketService = require('./websocket/socketService');
 
 dotenv.config();
 const app = express();
+
+// Required on Render/reverse proxies so secure cookies work correctly
+app.set('trust proxy', 1);
+
 const server = http.createServer(app);
 
 // Initialize Socket.io
