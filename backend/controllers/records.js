@@ -1,4 +1,4 @@
-const { admin, service_db } = require('../configs/firebase_db');
+const { admin, service_db, firebaseErrorResponse } = require('../configs/firebase_db');
 
 // Test endpoint to verify backend is working
 exports.test_records = async (req, res) => {
@@ -214,10 +214,11 @@ exports.get_records = async (req, res) => {
   } catch (error) {
     console.error('Error getting records:', error);
     console.error('Query parameters:', { paymentMethod, attendant, startDate, endDate, limit });
-    res.status(500).json({
+    const { status, message, error: detail } = firebaseErrorResponse(error);
+    res.status(status).json({
       success: false,
-      message: 'Internal server error',
-      error: error.message
+      message,
+      error: detail,
     });
   }
 };
@@ -749,10 +750,11 @@ exports.get_dashboard_stats = async (req, res) => {
 
   } catch (error) {
     console.error('Error getting dashboard stats:', error);
-    res.status(500).json({
+    const { status, message, error: detail } = firebaseErrorResponse(error);
+    res.status(status).json({
       success: false,
-      message: 'Internal server error',
-      error: error.message
+      message,
+      error: detail,
     });
   }
 };
